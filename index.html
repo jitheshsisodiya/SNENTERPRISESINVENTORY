@@ -84,6 +84,41 @@ body.out:not(.onlogin) .staffbtn{display:inline-flex}
 @media(max-width:559px){.userbtn .nm{display:none}.userbtn{padding:0 5px}}
 .rolepill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--infobg);color:var(--info)}
 
+/* stock register */
+.chiprow{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;margin:0 -2px 6px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.chiprow button{flex:none;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:8px 14px;min-height:46px;text-align:left;line-height:1.2}
+.chiprow button small{display:block;font-weight:500;color:var(--muted);font-size:11.5px}
+.chiprow button.on{background:var(--ink);border-color:var(--ink);color:#fff}.chiprow button.on small{color:#b9c6dc}
+.reghead{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:6px 0 12px}
+.reghead h2{font-size:24px;margin:0;letter-spacing:.2px}
+.reghead .tot{font-size:13px;color:var(--muted)}.reghead .tot b{display:block;font-size:30px;color:var(--text);line-height:1.1;letter-spacing:-.5px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:10px 2px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-2px;margin-right:5px}
+.regwrap{overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+table.reg{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+table.reg th,table.reg td{padding:11px 10px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;min-width:62px}
+table.reg thead th{background:var(--soft);color:var(--muted);font-size:11.5px;letter-spacing:.7px;text-transform:uppercase;position:sticky;top:0}
+table.reg .sn{min-width:40px;width:40px;color:var(--muted);font-size:12.5px}
+table.reg .cl{text-align:left;font-weight:700;min-width:120px;position:sticky;left:0;background:var(--card);z-index:1}
+table.reg thead .cl{background:var(--soft);z-index:2}
+table.reg .sn{position:sticky;left:0;background:var(--card);z-index:1}
+table.reg thead .sn{background:var(--soft);z-index:2}
+table.reg td.c{font-size:16px;font-weight:600}
+table.reg td.c.clk{cursor:pointer}table.reg td.c.clk:hover{background:var(--accent-l);box-shadow:inset 0 0 0 2px var(--accent)}
+table.reg td.zero{color:var(--bad);background:var(--badbg);font-weight:700}
+table.reg td.lowc{background:var(--warnbg);color:var(--warn);font-weight:800}
+table.reg td.neg{background:var(--bad);color:#fff}
+table.reg td.na{color:var(--line);font-weight:400}
+table.reg td.rt,table.reg th.rt{background:var(--soft);font-weight:800;border-left:2px solid var(--line);position:sticky;right:0;z-index:1}
+table.reg td.rt{font-size:16px}table.reg th.rt{z-index:2}
+table.reg tbody tr:hover td:not(.c){background:var(--soft)}
+table.reg tfoot td{font-weight:800;font-size:16px;background:var(--soft);border-top:2px solid var(--ink);border-bottom:0}
+table.reg tfoot td.cl,table.reg tfoot td.sn{background:var(--soft)}
+table.reg tfoot td.gt{background:var(--ink);color:#fff;font-size:17px;position:sticky;right:0;z-index:1}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25)}
+@media(max-width:560px){table.reg th,table.reg td{padding:10px 6px;min-width:50px}table.reg .sn{display:none}table.reg .cl{min-width:92px}table.reg td.c{font-size:15px}.reghead h2{font-size:21px}}
+@media print{.chiprow,.legend{display:none!important}.regwrap{border:0;overflow:visible}table.reg th,table.reg td{border:1px solid #000;color:#000!important;background:#fff!important}table.reg td.gt{background:#eee!important}.sw{display:none}}
+
 /* typography + layout */
 h1{font-size:22px;margin:0 0 14px;letter-spacing:-.2px}
 h2{font-size:16px;margin:0 0 10px}
@@ -271,7 +306,7 @@ const ICON = {
   more: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.5"/>', tag: '<path d="M20 12l-8 8-9-9V3h8z"/><path d="M7.5 7.5h.01"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>', gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   sync: '<path d="M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M18 2v4h-4M6 22v-4h4"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
-  out: '<path d="M7 17L17 7M8 7h9v9"/>', in: '<path d="M17 7L7 17M16 17H7V8"/>',
+  grid: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>', out: '<path d="M7 17L17 7M8 7h9v9"/>', in: '<path d="M17 7L7 17M16 17H7V8"/>',
 };
 const ic = k => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 
@@ -487,7 +522,7 @@ async function write(action, payload, okMsg, onOk) {
 }
 
 /* ════════════════════════ router + chrome ════════════════════════ */
-const NAV = [['dashboard','Home','home'],['stock','Stock','box'],['entry','New entry','plus'],['moves','Movements','list'],['items','Items','tag'],['reports','Reports','chart'],['settings','Account','gear']];
+const NAV = [['dashboard','Home','home'],['stock','Stock','box'],['register','Register','grid'],['entry','New entry','plus'],['moves','Movements','list'],['items','Items','tag'],['reports','Reports','chart'],['settings','Account','gear']];
 const navFor = () => NAV.filter(([k]) => k === 'entry' ? can.entry() : k === 'items' ? can.admin() : true);
 function parseHash() {
   const [p, qs = ''] = location.hash.replace(/^#\/?/, '').split('?');
@@ -502,12 +537,12 @@ function chrome(r) {
   $('#userBtn').title = `${u.name} · ${ROLES[u.role] || u.role}`;
   $('#nav').innerHTML = navFor().map(([k, l, i]) => `<a href="#/${k}" class="${k === r ? 'on' : ''}" ${k === r ? 'aria-current="page"' : ''}>${ic(i)}${l}</a>`).join('');
   const tab = (k, l, i) => `<a href="#/${k}" class="${k === r ? 'on' : ''}">${ic(i)}<span>${l}</span></a>`;
-  const moreOn = ['items', 'reports', 'settings'].includes(r);
+  const moreOn = ['register', 'items', 'reports', 'settings'].includes(r);
   const mid = can.entry() ? `<a href="#/entry" class="fab ${r === 'entry' ? 'on' : ''}" aria-label="New entry"><span class="c">${ic('plus')}</span><em>New entry</em></a>` : tab('reports', 'Reports', 'chart');
   $('#tabbar').innerHTML = tab('dashboard', 'Home', 'home') + tab('stock', 'Stock', 'box') + mid +
     tab('moves', 'Movements', 'list') + `<button id="moreBtn" class="${moreOn ? 'on' : ''}">${ic('more')}<span>More</span></button>`;
   $('#moreBtn').onclick = () => openDlg(`<div class="dh"><h2>More</h2><button class="xbtn" data-close aria-label="Close">${ic('x')}</button></div>
-    <div class="morelist">${can.admin() ? `<a href="#/items" data-close>${ic('tag')}Items &amp; SKUs</a>` : ''}${can.entry() ? `<a href="#/reports" data-close>${ic('chart')}Reports</a>` : ''}<a href="#/settings" data-close>${ic('gear')}Account &amp; sign out</a></div>`);
+    <div class="morelist"><a href="#/register" data-close>${ic('grid')}Stock register</a>${can.admin() ? `<a href="#/items" data-close>${ic('tag')}Items &amp; SKUs</a>` : ''}${can.entry() ? `<a href="#/reports" data-close>${ic('chart')}Reports</a>` : ''}<a href="#/settings" data-close>${ic('gear')}Account &amp; sign out</a></div>`);
 }
 function loginView(v) {
   v.innerHTML = `<div class="login"><form class="card" id="lf" autocomplete="on">
@@ -528,6 +563,65 @@ function loginView(v) {
   };
   setTimeout(() => $('#lUser')?.focus(), 30);
 }
+const views = {};
+/* ── register table: colours down, sizes across, with totals (shared by the Register and the public page) ── */
+const SWATCH = {yellow:'#facc15',grey:'#9ca3af',gray:'#9ca3af',navy:'#1e3a8a','navy blue':'#1e3a8a','sky blue':'#7dd3fc',sky:'#7dd3fc',orange:'#fb923c',peach:'#fdba9a',lavender:'#c4b5fd',black:'#111827',white:'#ffffff',
+  red:'#ef4444',green:'#22c55e','bottle green':'#14532d','parrot green':'#4ade80',blue:'#3b82f6','royal blue':'#2563eb',maroon:'#7f1d1d',pink:'#f9a8d4',purple:'#a855f7',brown:'#92400e',beige:'#e7d9bd',cream:'#fef3c7',
+  mustard:'#ca8a04',rani:'#db2777',turquoise:'#2dd4bf',teal:'#0d9488',wine:'#881337',coffee:'#6f4e37',silver:'#cbd5e1',gold:'#d4a017',offwhite:'#f5f5f0','off white':'#f5f5f0'};
+const swatch = c => { const k = normS(c), h = SWATCH[k] || SWATCH[k.split(' ').pop()]; return h ? `<i class="sw" style="background:${h}"></i>` : ''; };
+function registerTable(rows, clickable) {
+  const sizes = [...new Set(rows.map(r => r.size))].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b));
+  const cols = [...new Set(rows.map(r => r.colour))], cell = {};     // colours stay in the order they are listed in the sheet, like the paper register
+  rows.forEach(r => cell[r.size + '\u0000' + r.colour] = r);
+  const colTot = sizes.map(() => 0); let grand = 0;
+  const body = cols.map((c, ci) => {
+    let rt = 0;
+    const tds = sizes.map((sz, si) => {
+      const r = cell[sz + '\u0000' + c]; if (!r) return '<td class="c na">·</td>';
+      const q = r.qty; rt += q; colTot[si] += q;
+      const cls = q < 0 ? 'neg' : q === 0 ? 'zero' : (r.reorder > 0 && q <= r.reorder) ? 'lowc' : '';
+      return `<td class="c ${cls} ${clickable && r.sku ? 'clk' : ''}" ${clickable && r.sku ? `data-sku="${esc(r.sku)}" title="${esc(describe(r))}"` : ''}>${num(q)}</td>`;
+    }).join('');
+    grand += rt;
+    return `<tr><td class="sn">${ci + 1}</td><td class="cl">${swatch(c)}${esc(c || 'All')}</td>${tds}<td class="c rt">${num(rt)}</td></tr>`;
+  }).join('');
+  return {total: grand, html: `<div class="regwrap"><table class="reg"><thead><tr><th class="sn">SN</th><th class="cl">${cols.some(c => c) ? 'Colour' : ''}</th>${sizes.map(sz => `<th>${esc(sz || '—')}</th>`).join('')}<th class="rt">Total</th></tr></thead>
+    <tbody>${body}</tbody><tfoot><tr><td class="sn"></td><td class="cl">Total</td>${colTot.map(t => `<td>${num(t)}</td>`).join('')}<td class="gt">${num(grand)}</td></tr></tfoot></table></div>`,
+    csv: [['Colour', ...sizes.map(x => x || '-'), 'Total']].concat(cols.map(c => [c || 'All', ...sizes.map(sz => cell[sz + '\u0000' + c]?.qty ?? ''), sizes.reduce((a, sz) => a + (cell[sz + '\u0000' + c]?.qty || 0), 0)]), [['Total', ...colTot, grand]])};
+}
+const RG = {item: '', q: ''};
+views.register = (el, q) => {
+  const rows = state.calc.rows.filter(r => r.active).map(r => ({sku: r.sku, item: r.item, colour: r.colour, size: r.size, qty: r.onHand, reorder: r.reorder}));
+  const groups = new Map(); rows.forEach(r => (groups.get(r.item) || groups.set(r.item, []).get(r.item)).push(r));
+  const names = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+  if (!names.length) { el.innerHTML = '<h1>Stock register</h1><div class="card empty">No items yet.</div>'; return; }
+  if (q.item && groups.has(q.item)) RG.item = q.item;
+  if (!groups.has(RG.item)) RG.item = names[0];
+  const tot = n => groups.get(n).reduce((a, r) => a + r.qty, 0);
+  el.innerHTML = `<h1>Stock register</h1>
+  <div class="tools"><div class="grow"><input id="rq" type="search" placeholder="Find an item…" aria-label="Find an item" value="${esc(RG.q)}"></div></div>
+  <div class="chiprow" id="rchips" role="tablist" aria-label="Items"></div><div id="rbody"></div>`;
+  const chips = () => {
+    const f = RG.q.trim().toLowerCase(), list = names.filter(n => !f || n.toLowerCase().includes(f));
+    $('#rchips').innerHTML = list.length ? list.map(n => `<button role="tab" data-n="${esc(n)}" class="${n === RG.item ? 'on' : ''}" aria-selected="${n === RG.item}">${esc(n)}<small>${num(tot(n))} pcs</small></button>`).join('') : '<span class="muted small" style="padding:10px">No item matches.</span>';
+    $$('#rchips button').forEach(b => b.onclick = () => { RG.item = b.dataset.n; chips(); body(); });
+    const on = $('#rchips .on'); if (on) on.scrollIntoView({inline: 'nearest', block: 'nearest'});
+  };
+  const body = () => {
+    const rs = groups.get(RG.item), t = registerTable(rs, true);
+    const ncol = new Set(rs.map(r => r.colour)).size, nsz = new Set(rs.map(r => r.size)).size;
+    $('#rbody').innerHTML = `<div class="reghead"><div><h2>${esc(RG.item)}</h2><div class="muted small">${ncol} colour${ncol === 1 ? '' : 's'} · ${nsz} size${nsz === 1 ? '' : 's'}</div></div>
+      <div style="display:flex;align-items:flex-end;gap:14px"><div class="tot">Pieces in stock<b>${num(t.total)}</b></div>
+      <div class="seg"><button class="btn ghost sm" id="rPrint">Print</button><button class="btn ghost sm" id="rCsv">CSV</button></div></div></div>
+      ${t.html}<div class="legend"><span><i style="background:var(--warnbg);border:1px solid var(--warn)"></i>at or below reorder level</span><span><i style="background:var(--badbg);border:1px solid var(--bad)"></i>out of stock</span><span>Tap a number for details</span></div>`;
+    $$('#rbody td.clk').forEach(td => td.onclick = () => skuDialog(td.dataset.sku));
+    $('#rPrint').onclick = () => window.print();
+    $('#rCsv').onclick = () => downloadCsv('register-' + RG.item.replace(/[^A-Za-z0-9]+/g, '_') + '-' + today() + '.csv', t.csv);
+  };
+  $('#rq').addEventListener('input', e => { RG.q = e.target.value; chips(); });
+  chips(); body();
+};
+
 /* ── public live stock: no sign-in, quantities only ── */
 const PUB = {rows: null, at: 0, err: '', q: '', all: false, busy: false};
 async function loadPublic(quiet) {
@@ -567,13 +661,8 @@ function drawPublic() {
   const t = PUB.at ? new Date(PUB.at).toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'}) : '';
   $('#psum').innerHTML = `<span class="live-dot"><span class="dot live"></span>Live from the stock sheet${t ? ' · updated ' + t : ''}</span> · ${num(names.length)} item${names.length === 1 ? '' : 's'} · <b>${num(units)}</b> pieces`;
   $('#plist').innerHTML = names.length ? names.map(n => {
-    const rows = groups.get(n), sizes = [...new Set(rows.map(r => r.size))].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b));
-    const cols = [...new Set(rows.map(r => r.colour))].sort((a, b) => a.localeCompare(b)), cell = {}; rows.forEach(r => cell[r.size + '\u0000' + r.colour] = r.qty);
-    const tot = rows.reduce((a, r) => a + r.qty, 0);
-    return `<div class="card pubitem"><div class="ph"><h2>${esc(n)}</h2><span class="muted small"><b>${num(tot)}</b> pcs</span></div>
-      <div class="grid-entry"><table><thead><tr><th>${cols.some(c => c) ? 'Colour' : ''}</th>${sizes.map(s => `<th>${esc(s || '—')}</th>`).join('')}</tr></thead><tbody>
-      ${cols.map(c => `<tr><td>${esc(c || 'All')}</td>${sizes.map(s => { const q = cell[s + '\u0000' + c]; return q === undefined ? '<td class="z">·</td>' : q > 0 ? `<td><b>${num(q)}</b></td>` : '<td class="z">–</td>'; }).join('')}</tr>`).join('')}
-      </tbody></table></div></div>`; }).join('') : '<div class="card empty">Nothing matches.</div>';
+    const t = registerTable(groups.get(n), false);
+    return `<div class="card pubitem"><div class="ph"><h2>${esc(n)}</h2><span class="muted small"><b>${num(t.total)}</b> pcs</span></div>${t.html}</div>`; }).join('') : '<div class="card empty">Nothing matches.</div>';
 }
 
 function render() {
@@ -602,7 +691,6 @@ $('#refreshBtn').onclick = () => refresh();
 $('#userBtn').onclick = () => { location.hash = '#/settings'; };
 
 /* ════════════════════════ shared widgets ════════════════════════ */
-const views = {};
 function attachSuggest(input, onPick) {
   const box = document.createElement('div'); box.className = 'suggest'; box.hidden = true;
   input.parentElement.style.position = 'relative'; input.parentElement.appendChild(box);

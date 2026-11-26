@@ -28,7 +28,7 @@ Closing stock = opening Qty + inward − outward. Entries are never deleted; a c
 Rules are enforced in `Code.gs` on the server, not just by hiding buttons in the app. Every ledger row records who entered it (`Entry By`) and when.
 
 ## Public live stock
-Anyone who opens the website sees the **Live stock** page without signing in: each item with a size × colour grid of quantities in stock, searchable, refreshed automatically every minute. It shows quantities only. Rates, HSN/GST, valuation, parties, user names and history are never sent to the public page. Staff use **Staff sign in** (top right) to enter stock or see the rest. If you do not want stock levels public, remove the `publicStock` line in `doPost` in `Code.gs` and redeploy.
+Anyone who opens the website sees the **Live stock** page without signing in: each item as a register (colours × sizes with totals) of quantities in stock, searchable, refreshed automatically every minute. It shows quantities only. Rates, HSN/GST, valuation, parties, user names and history are never sent to the public page. Staff use **Staff sign in** (top right) to enter stock or see the rest. If you do not want stock levels public, remove the `publicStock` line in `doPost` in `Code.gs` and redeploy.
 
 ## Set-up
 
@@ -47,6 +47,7 @@ Anyone who opens the website sees the **Live stock** page without signing in: ea
 
 ## Using it
 - **New entry** – pick Sale / Purchase / Returns / Adjustment, choose an item, type quantities into the **size × colour grid** (or search), add party and invoice no., **Save**. Stock cannot go below zero.
+- **Register** – the paper stock register on screen: pick an item, see colours down the side and sizes across with row, column and grand totals. Amber = at or below reorder level, red = out of stock. Tap a number for its history; Print or CSV. Colours appear in the order listed in the Stock Movement tab.
 - **Stock** – on hand, status (OK / LOW / OUT / NOT STOCKED), weighted-average cost and value. Tap a row for its history.
 - **Items** (Super admin) – add an item with all its sizes and colours at once. Short codes (e.g. `DOTKNIT-S-YEL`) are generated automatically. Rates, opening stock, reorder level and Active can be edited.
 - **Reports** – HSN-wise summary, category-wise value, reorder list; print or CSV.
