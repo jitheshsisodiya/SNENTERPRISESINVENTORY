@@ -1,55 +1,60 @@
 # SN Enterprises – Inventory Tracker
 
-Stock tracker for a sportswear wholesale business. A static web app (GitHub Pages) talks to a Google Apps Script web app, which stores everything in a Google Sheet you own.
+Stock tracker for a sportswear wholesale business. A static web app (GitHub Pages) talks to a Google Apps Script web app, which reads and writes your own Google Sheet.
 
 ```
 Browser (index.html on GitHub Pages)  ──POST──▶  Apps Script Web app (Code.gs)  ──▶  Google Sheet
 ```
 
-## What it does
+## The Google Sheet (3 tabs)
 
-- **Items** – one SKU per item × size × colour; a generator creates all variants at once (e.g. Polo T-Shirt × S–XXL × Navy/Black). Stores HSN, GST %, cost rate, sale rate, reorder level.
-- **New entry** – pick the type (sale, purchase, returns, opening, adjustments), choose an item and type quantities straight into a **size × colour grid**, or search a SKU. Many lines per invoice; rates pre-fill from the item master; stepper buttons and a sticky Save bar for one-handed phone use.
-- **Stock** – on-hand per SKU, weighted-average cost, value, status (OK / LOW / OUT / NOT STOCKED). Search, filter chips, CSV export. Tap any SKU for its history with Sell / Receive shortcuts.
-- **Movements** – full ledger. Entries are never deleted: *Cancel* keeps the row, marks it CANCELLED with the reason and time, and removes it from stock.
-- **Reports** – HSN-wise stock summary, category-wise value, reorder list; print or CSV.
-- **Safety** – whole-number quantities, no negative stock (set `ALLOW_NEGATIVE_STOCK = true` in `Code.gs` to relax), writes are locked so several people can enter at once, and a retried save can never double-post (every entry has a unique ID).
+| Tab | What it holds |
+|---|---|
+| **Login** | `Login Name`, `Password`, `Type of access`. Access is **Super admin access** or **Edit access** (anything else, or blank, = view only). |
+| **Stock Movement** | One row per Item × Colour × Size with **Qty = opening stock**. Columns E–G (In / Out / Closing) are formulas filled by `setup`. Rates, HSN, GST, reorder level, category and Active are in columns H–N. |
+| **Inward/ Outward** | The ledger: `Type`, `Date`, `Item`, `Colour`, `Size`, `Qty`, `Entry By`, `Date & Time`, then party, ref, movement type, rate, entry ID and cancel details. The app adds a row for every line entered. |
 
-**Works on phone, tablet and computer:** bottom tab bar and card-style lists on phones, full tables on larger screens, large touch targets, light/dark mode, and it can be installed to the home screen (manifest + icons included).
+Closing stock = opening Qty + inward − outward. Entries are never deleted; a cancelled entry stays in the ledger marked `CANCELLED` and stops counting.
 
-Without a connection the app runs on **demo data** stored only in your browser, so you can try it first.
+## Who can do what
 
-## Set-up (about 10 minutes)
+| | Super admin | Edit access | Anyone else |
+|---|---|---|---|
+| See stock, movements, reports | ✓ | ✓ | ✓ |
+| Record inward / outward entries | ✓ | ✓ | – |
+| Add / edit items, opening stock, rates | ✓ | – | – |
+| Cancel an entry | ✓ | – | – |
 
-### 1. Google Sheet + backend
-1. Create a new Google Sheet (e.g. "SN Inventory").
-2. **Extensions → Apps Script**. Delete the sample code and paste the whole of `Code.gs`. Save.
-3. Select the function **`setup`** and click **Run**. Approve the permission prompt. This creates the `Items`, `Movements` and `Stock` tabs and an access key. (Reload the sheet; a menu **SN Inventory → Show access key** appears.)
-4. **Deploy → New deployment → type: Web app**
-   - Execute as: **Me**
-   - Who has access: **Anyone**
-   - Copy the **Web app URL** (ends in `/exec`).
+Rules are enforced in `Code.gs` on the server, not just by hiding buttons in the app. Every ledger row records who entered it (`Entry By`) and when.
 
-   "Anyone" only means the URL is reachable; every request is rejected unless it carries the access key.
-5. After any later change to `Code.gs`, use **Deploy → Manage deployments → Edit → New version**, otherwise the live URL keeps running the old code.
+## Set-up
 
-### 2. Host the web app on GitHub Pages
-1. Push this folder (all files, including the icons and `manifest.webmanifest`) to a GitHub repository.
-2. Repo **Settings → Pages → Deploy from a branch → `main` / root**.
-3. Open `https://<your-user>.github.io/<repo>/`.
+### 1. Backend
+1. Open your Google Sheet → **Extensions → Apps Script**. Replace the code with the whole of `Code.gs` and save.
+2. Run **`setup`** once and approve the permissions. It adds any missing headers, the formulas in Stock Movement E–G, and a signing secret.
+3. Reload the sheet. In the new **SN Inventory** menu run **Hash all passwords now**. This replaces every plain-text password in the Login tab with a salted hash. (Passwords typed later are also converted automatically the first time that person signs in.) To reset someone's password, type a new plain password in the sheet; it is hashed on their next sign-in.
+4. **Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy.** This keeps the same Web app URL. (A brand-new deployment gives a new URL, which would then have to be changed in `index.html`, constant `BAKED_URL`.) Settings: Execute as **Me**, access **Anyone**.
 
-### 3. Sign in on each device
-The Web app URL is already built into `index.html` (the `BAKED_URL` constant near the top of the script), so nobody has to paste it. The first time the app opens on a phone or computer it asks for the **access key** only (**SN Inventory → Show access key** in the Google Sheet). The key is stored only on that device; **Settings → Sign out** removes it.
+"Anyone" only makes the URL reachable. Nothing works without signing in with a valid user name and password; sign-ins last 14 days.
 
-If you ever redeploy as a *new* deployment, the URL changes: update `BAKED_URL` in `index.html`. A new *version* of the same deployment keeps the URL.
+### 2. Website
+1. Push these files to the GitHub repository.
+2. **Settings → Pages → Deploy from a branch → `main` / root**.
+3. Open `https://<user>.github.io/<repo>/`, sign in, and (on a phone) use the browser menu → **Add to Home screen**.
 
-Open `index.html?demo` to practise on sample data without touching the real sheet.
+## Using it
+- **New entry** – pick Sale / Purchase / Returns / Adjustment, choose an item, type quantities into the **size × colour grid** (or search), add party and invoice no., **Save**. Stock cannot go below zero.
+- **Stock** – on hand, status (OK / LOW / OUT / NOT STOCKED), weighted-average cost and value. Tap a row for its history.
+- **Items** (Super admin) – add an item with all its sizes and colours at once. Short codes (e.g. `DOTKNIT-S-YEL`) are generated automatically. Rates, opening stock, reorder level and Active can be edited.
+- **Reports** – HSN-wise summary, category-wise value, reorder list; print or CSV.
+- **Account** – who you are, your access level, sign out.
 
-> The URL is visible to anyone who views the page source, as with any static site. It cannot be used without the access key, so keep the key out of the repository and share it only with your staff.
-
-## Notes
-- The `Stock` tab in the Sheet is live formulas (on-hand and reorder status); the app computes the same numbers itself.
-- Valuation = on-hand × weighted-average rate of inward entries (opening, purchase, adjustment +), falling back to the item's cost rate.
-- HSN suggestions in the form are hints only; confirm HSN and GST rates for your products.
-- Rotate the key: delete the `ACCESS_KEY` Script Property, run `setup` again, and update the key in Settings.
-- Don't edit the `Movements` sheet by hand; use *Cancel* in the app so the audit trail stays intact.
+## Good to know
+- **Item, Colour and Size link the ledger to stock by name** (spelling and spacing, not case). If you rename an item in Stock Movement, old ledger rows stop matching. The app shows a red warning to the Super admin when ledger rows match no item. Prefer adding a new row over renaming.
+- Don't type into Stock Movement columns E–G; they are formulas.
+- You can still type ledger rows by hand in the *Inward/ Outward* tab (Type = Inward or Outward). They count toward stock but are not blocked from going negative.
+- Valuation = on-hand × weighted-average cost (opening stock at the item's cost rate plus purchases at their rates).
+- `ALLOW_NEGATIVE_STOCK` in `Code.gs` can be set to `true` to allow selling below zero.
+- **SN Inventory → Sign out everyone** invalidates all sign-ins at once (use it if a phone is lost).
+- Open `index.html?demo` to practise on sample data without touching the real sheet.
+- The Web app URL is visible in the page source, as for any static site. It cannot be used without a valid sign-in.

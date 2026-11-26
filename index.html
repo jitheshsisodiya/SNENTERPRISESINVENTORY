@@ -59,6 +59,25 @@ main{max-width:1240px;margin:0 auto;padding:16px 16px calc(var(--tabh) + var(--s
 .sync .txt{display:none}@media(min-width:560px){.sync .txt{display:inline}}
 .brand span{display:none}@media(min-width:420px){.brand span{display:block}}
 
+/* sign-in */
+body.out header.top .sync,body.out nav#nav,body.out #tabbar{display:none!important}
+body.out main{padding-bottom:40px}
+.login{max-width:400px;margin:6vh auto 0}
+.login .card{padding:26px 22px;box-shadow:0 12px 40px rgba(11,31,58,.12)}
+.login .lg{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.login .lg .logo{width:46px;height:46px;font-size:17px;border-radius:12px}
+.login .lg b{display:block;font-size:18px;letter-spacing:.3px}
+.login .lg span{color:var(--muted);font-size:13px}
+.login .field{margin-bottom:14px}
+.pwrow{position:relative}.pwrow input{padding-right:64px}
+.pwrow button{position:absolute;right:4px;top:4px;min-height:36px;padding:0 12px;background:none;color:var(--info);font-size:13px}
+.userbtn{display:none;align-items:center;gap:8px;background:rgba(255,255,255,.12);color:#fff;padding:0 12px 0 6px;height:34px;min-height:0;border-radius:99px;font-size:13px;max-width:150px}
+.userbtn .av{width:24px;height:24px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none}
+.userbtn .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.in .userbtn{display:flex}
+@media(max-width:559px){.userbtn .nm{display:none}.userbtn{padding:0 5px}}
+.rolepill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--infobg);color:var(--info)}
+
 /* typography + layout */
 h1{font-size:22px;margin:0 0 14px;letter-spacing:-.2px}
 h2{font-size:16px;margin:0 0 10px}
@@ -219,7 +238,8 @@ dialog .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;f
   <a class="brand" href="#/dashboard" aria-label="Home"><div class="logo">SN</div><div><b>SN ENTERPRISES</b><span>Inventory tracker</span></div></a>
   <nav id="nav" aria-label="Main"></nav>
   <div class="sync"><span class="dot" id="dot"></span><span class="txt" id="syncTxt">…</span>
-    <button id="refreshBtn" title="Reload latest data" aria-label="Reload latest data"></button></div>
+    <button id="refreshBtn" title="Reload latest data" aria-label="Reload latest data"></button>
+    <button id="userBtn" class="userbtn" aria-label="Account"></button></div>
 </div></header>
 <main id="view"><div class="spin" aria-label="Loading"></div></main>
 <div id="tabbar" aria-label="Main"></div>
@@ -278,21 +298,26 @@ const TYPES = {
   PURCHASE:        {label: 'Purchase / inward', short: 'Purchase',        dir: 1,  rate: 'cost', costs: true},
   SALE_RETURN:     {label: 'Sales return',      short: 'Sales return',    dir: 1,  rate: 'sale'},
   PURCHASE_RETURN: {label: 'Purchase return',   short: 'Purchase return', dir: -1, rate: 'cost'},
-  OPENING:         {label: 'Opening stock',     short: 'Opening stock',   dir: 1,  rate: 'cost', costs: true},
   ADJ_IN:          {label: 'Adjustment (+)',    short: 'Adjust +',        dir: 1,  rate: 'cost', costs: true},
   ADJ_OUT:         {label: 'Adjustment (−)',    short: 'Adjust −',        dir: -1, rate: 'cost'},
+  /* rows typed by hand straight into the “Inward/ Outward” tab; shown in lists, not offered when entering */
+  INWARD:          {label: 'Inward (typed in sheet)',  short: 'Inward',  dir: 1,  rate: 'cost', hide: true},
+  OUTWARD:         {label: 'Outward (typed in sheet)', short: 'Outward', dir: -1, rate: 'cost', hide: true},
 };
+const ROLES = {ADMIN: 'Super admin', EDITOR: 'Edit access', VIEWER: 'View only'};
+const normS = v => String(v ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+const keyOf = (item, colour, size) => [item, colour, size].map(normS).join('|');
 const HSN_HINTS = [['6109','T-shirts, knitted'],['6110','Jerseys, pullovers, hoodies, knitted'],['6105','Men\'s shirts / polos, knitted'],
                    ['6103','Men\'s trousers, suits, knitted'],['6104','Women\'s trousers, suits, knitted'],['6112','Track suits, swimwear'],['6114','Other garments, knitted']];
 const SIZE_ORDER = ['FREE','FREESIZE','XXS','XS','S','M','L','XL','XXL','2XL','3XL','XXXL','4XL','5XL'];
 const sizeRank = s => { const u = String(s).toUpperCase().replace(/\s/g, ''); const i = SIZE_ORDER.indexOf(u); if (i >= 0) return i; const n = parseFloat(u); return isNaN(n) ? 500 : 100 + n; };
 
-const state = {items: [], moves: [], calc: null, loaded: false, error: '', busy: false};
+const state = {items: [], moves: [], orphans: 0, calc: null, loaded: false, error: '', busy: false};
 const bySku = sku => state.calc?.bySku.get(String(sku || '').trim().toUpperCase());
 
 function compute(items, moves) {
   const map = new Map();
-  items.forEach(i => map.set(i.sku, {...i, inQty: 0, outQty: 0, onHand: 0, costQty: 0, costVal: 0, hasMoves: false, lastMove: ''}));
+  items.forEach(i => { const o = +i.opening || 0; map.set(i.sku, {...i, opening: o, inQty: 0, outQty: 0, onHand: o, costQty: o, costVal: o * (+i.cost || 0), hasMoves: o > 0, lastMove: ''}); });
   moves.forEach(m => {
     if (m.status !== 'ACTIVE') return;
     const r = map.get(m.sku); if (!r) return;
@@ -317,60 +342,91 @@ const describe = i => [i.item, i.size, i.colour].filter(Boolean).join(' · ');
 const rateFor = (it, type) => !it ? 0 : r2(TYPES[type].rate === 'sale' ? it.sale : (it.avgCost || it.cost));
 
 /* ════════════════════════ storage / API ════════════════════════ */
-const CFG_KEY = 'snit_cfg_v1', DEMO_KEY = 'snit_demo_v1';
-/* Backend (Google Apps Script Web app) is built in so staff never have to paste it.
-   The URL alone gives no access: every request must also carry the access key. */
+const SESSION_KEY = 'snit_session_v2', DEMO_KEY = 'snit_demo_v2';
+/* The Google Apps Script Web app is built in so staff never see or paste it.
+   The URL alone gives no access: every request needs a sign-in token issued after user name + password. */
 const BAKED_URL = 'https://script.google.com/macros/s/AKfycbw2DCUcZ41rgRTxeEJd83RI54CKT32RFxJYyy6GCH5Pw8pZmn1-XBJAXOYyRHOebyPh0A/exec';
 const FORCE_DEMO = new URLSearchParams(location.search).has('demo');   // open index.html?demo to practise on sample data
-const getCfg = () => { if (FORCE_DEMO) return {}; let c = {}; try { c = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch {} return BAKED_URL ? {...c, url: BAKED_URL} : c; };
-const setCfg = c => localStorage.setItem(CFG_KEY, JSON.stringify(c));
-const isLive = () => !!getCfg().url;
+const isLive = () => !FORCE_DEMO && !!BAKED_URL;
+const DEMO_USER = {name: 'Demo', role: 'ADMIN'};
+let session = null;
+try { session = JSON.parse(localStorage.getItem(SESSION_KEY)); if (!session || !session.token || !session.user) session = null; } catch { session = null; }
+const saveSession = s => { session = s; try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch {} };
+const me = () => isLive() ? session?.user : DEMO_USER;
+const signedIn = () => !!me();
+const can = {
+  entry: () => ['ADMIN', 'EDITOR'].includes(me()?.role),     // record stock movements
+  admin: () => me()?.role === 'ADMIN',                        // items, edits, cancelling
+};
 
-async function api(action, payload = {}) {
-  const cfg = getCfg();
-  if (!cfg.url) return demoApi(action, payload);
+async function post(body) {
   let res;
   try {
-    res = await fetch(cfg.url, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify({key: cfg.key || '', action, payload}), redirect: 'follow'});
-  } catch (e) { throw new Error('Could not reach Google. Check your internet connection and the Web app URL.'); }
+    res = await fetch(BAKED_URL, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(body), redirect: 'follow'});
+  } catch (e) { throw new Error('Could not reach Google. Check your internet connection and try again.'); }
   if (!res.ok) throw new Error('Server returned HTTP ' + res.status);
-  let data; try { data = await res.json(); } catch { throw new Error('Unexpected reply from the server. Is the Web app deployed with access "Anyone"?'); }
-  if (!data.ok) throw new Error(data.error || 'Request failed');
+  let data; try { data = await res.json(); } catch { throw new Error('Unexpected reply from the server. Is the Web app deployed with access “Anyone”?'); }
   return data;
 }
+async function api(action, payload = {}) {
+  if (!isLive()) return demoApi(action, payload);
+  if (!session) { const e = new Error('Please sign in.'); e.auth = true; throw e; }
+  const data = await post({token: session.token, action, payload});
+  if (!data.ok) {
+    const e = new Error(data.error || 'Request failed');
+    if (data.auth) { e.auth = true; endSession(e.message); }
+    throw e;
+  }
+  return data;
+}
+async function doLogin(user, password) {
+  const data = await post({action: 'login', payload: {user, password}});
+  if (!data.ok) throw new Error(data.error || 'Could not sign in.');
+  saveSession({token: data.token, user: data.user});
+}
+function endSession(msg) {
+  saveSession(null); state.items = []; state.moves = []; state.calc = null; state.loaded = false; state.error = ''; E.lines = [];
+  loginMsg = msg || ''; if (location.hash && location.hash !== '#/') location.hash = ''; render();
+}
+let loginMsg = '';
 
 /* — demo mode: same contract as Code.gs, stored in this browser only — */
+function demoSku(d, it) {
+  const code = (s, n) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, n);
+  const base = [code(it.item, 10), code(it.size, 6), code(it.colour, 3)].filter(Boolean).join('-') || 'ITEM';
+  let sku = base, n = 1; while (d.items.some(x => x.sku === sku)) sku = base + '-' + (++n);
+  return sku;
+}
 function demoLoad() {
   try { const d = JSON.parse(localStorage.getItem(DEMO_KEY)); if (d && d.items) return d; } catch {}
   const d = {items: [], moves: []};
-  const mk = (prefix, name, cat, hsn, gst, cost, sale, reorder, sizes, colours) => sizes.forEach(s => colours.forEach(c =>
-    d.items.push({sku: `${prefix}-${s}-${c.slice(0, 3).toUpperCase()}`, item: name, category: cat, size: s, colour: c, hsn, gst, cost, sale, reorder, active: true})));
-  mk('POLO', 'Polo T-Shirt', 'Polo T-Shirts', '6105', 5, 180, 299, 20, ['M','L','XL'], ['Navy','Black']);
-  mk('TRK', 'Track Pant', 'Track Pants', '6103', 5, 220, 349, 15, ['M','L','XL'], ['Black']);
-  mk('JRS', 'Team Jersey', 'Team Jerseys', '6110', 5, 260, 429, 10, ['S','M','L'], ['Royal Blue']);
-  let n = 0; const day = '2026-04-01';
-  d.items.forEach(i => d.moves.push({id: 'DEMO' + (++n), date: day, type: 'OPENING', sku: i.sku, qty: 30 + (n * 7) % 25, signedQty: 30 + (n * 7) % 25, rate: i.cost,
-    party: '', ref: 'Opening', notes: '', status: 'ACTIVE', createdAt: day, cancelledAt: '', cancelReason: ''}));
-  const sale = (sku, qty) => d.moves.push({id: 'DEMO' + (++n), date: '2026-04-12', type: 'SALE', sku, qty, signedQty: -qty, rate: d.items.find(i => i.sku === sku).sale,
-    party: 'Sample Sports Club', ref: 'INV-001', notes: '', status: 'ACTIVE', createdAt: day, cancelledAt: '', cancelReason: ''});
-  sale('POLO-M-NAV', 22); sale('TRK-L-BLA', 14); sale('JRS-S-ROY', 26);
+  let n = 0;
+  const mk = (name, cat, hsn, gst, cost, sale, reorder, sizes, colours) => sizes.forEach(s => colours.forEach(c =>
+    d.items.push({sku: demoSku(d, {item: name, size: s, colour: c}), item: name, category: cat, size: s, colour: c, hsn, gst, cost, sale, reorder, active: true, opening: 30 + (++n * 7) % 25})));
+  mk('Polo T-Shirt', 'Polo T-Shirts', '6105', 5, 180, 299, 20, ['M','L','XL'], ['Navy','Black']);
+  mk('Track Pant', 'Track Pants', '6103', 5, 220, 349, 15, ['M','L','XL'], ['Black']);
+  mk('Team Jersey', 'Team Jerseys', '6110', 5, 260, 429, 10, ['S','M','L'], ['Royal Blue']);
+  let k = 0;
+  const sale = (item, colour, size, qty) => { const it = d.items.find(i => i.item === item && i.colour === colour && i.size === size);
+    d.moves.push({id: 'DEMO' + (++k), date: '2026-04-12', type: 'SALE', sku: it.sku, item, colour, size, qty, signedQty: -qty, rate: it.sale,
+      party: 'Sample Sports Club', ref: 'INV-001', enteredBy: 'Demo', createdAt: '2026-04-12 10:00:00', status: 'ACTIVE', cancelledAt: '', cancelledBy: '', cancelReason: ''}); };
+  sale('Polo T-Shirt', 'Navy', 'M', 22); sale('Track Pant', 'Black', 'L', 14); sale('Team Jersey', 'Royal Blue', 'S', 26);
   return d;
 }
 const demoSave = d => localStorage.setItem(DEMO_KEY, JSON.stringify(d));
 async function demoApi(action, p) {
   const d = demoLoad();
-  const stock = () => { const m = {}; d.moves.forEach(x => { if (x.status === 'ACTIVE') m[x.sku] = (m[x.sku] || 0) + x.signedQty; }); return m; };
-  if (action === 'bootstrap') { demoSave(d); return {ok: true, items: d.items, moves: d.moves}; }
+  const stock = () => { const m = {}; d.items.forEach(i => m[i.sku] = +i.opening || 0); d.moves.forEach(x => { if (x.status === 'ACTIVE') m[x.sku] = (m[x.sku] || 0) + x.signedQty; }); return m; };
+  if (action === 'bootstrap') { demoSave(d); return {ok: true, user: DEMO_USER, items: d.items, moves: d.moves, orphans: 0}; }
   if (action === 'saveItem' || action === 'saveItems') {
     const list = action === 'saveItem' ? [p.item] : p.items, update = action === 'saveItem', saved = [], skipped = [];
     list.forEach(it => {
-      const sku = String(it.sku || '').trim().toUpperCase(); if (!sku) throw new Error('SKU is required.');
-      if (!String(it.item || '').trim()) throw new Error('Item name is required for ' + sku + '.');
-      const rec = {...it, sku, gst: +it.gst || 0, cost: +it.cost || 0, sale: +it.sale || 0, reorder: +it.reorder || 0, active: it.active !== false};
-      const ix = d.items.findIndex(x => x.sku === sku);
-      if (update) { if (ix < 0) throw new Error('SKU ' + sku + ' does not exist.'); d.items[ix] = rec; saved.push(sku); }
-      else if (ix >= 0) skipped.push(sku); else { d.items.push(rec); saved.push(sku); }
+      if (!String(it.item || '').trim()) throw new Error('Item name is required.');
+      const rec = {...it, gst: +it.gst || 0, cost: +it.cost || 0, sale: +it.sale || 0, reorder: +it.reorder || 0, opening: +it.opening || 0, active: it.active !== false};
+      if (update) { const ix = d.items.findIndex(x => x.sku === it.sku); if (ix < 0) throw new Error('SKU ' + it.sku + ' does not exist.');
+        const o = d.items[ix]; d.items[ix] = {...rec, sku: o.sku, item: o.item, colour: o.colour, size: o.size}; saved.push(o.sku); }
+      else if (d.items.some(x => keyOf(x.item, x.colour, x.size) === keyOf(it.item, it.colour, it.size))) skipped.push([it.item, it.colour, it.size].join(' / '));
+      else { rec.sku = demoSku(d, rec); d.items.push(rec); saved.push(rec.sku); }
     });
     demoSave(d); return {ok: true, saved, skipped};
   }
@@ -379,13 +435,13 @@ async function demoApi(action, p) {
     p.movements.forEach((m, i) => {
       if (ids.has(m.id)) { dupes.push(m.id); return; }
       const t = TYPES[m.type]; if (!t) throw new Error(`Line ${i + 1}: unknown movement type.`);
-      const sku = String(m.sku).toUpperCase(), it = d.items.find(x => x.sku === sku);
-      if (!it) throw new Error(`Line ${i + 1}: SKU "${sku}" is not in the item master.`);
+      const sku = String(m.sku), it = d.items.find(x => x.sku === sku);
+      if (!it) throw new Error(`Line ${i + 1}: item "${sku}" is not in the Stock Movement tab.`);
       const qty = +m.qty; if (!(qty > 0) || Math.round(qty) !== qty) throw new Error(`Line ${i + 1}: quantity must be a whole number above zero.`);
       const signed = t.dir * qty; if ((st[sku] || 0) + signed < 0) throw new Error(`Line ${i + 1}: ${sku} has only ${st[sku] || 0} in stock; cannot take out ${qty}.`);
       st[sku] = (st[sku] || 0) + signed;
-      rows.push({id: m.id, date: m.date, type: m.type, sku, qty, signedQty: signed, rate: +m.rate || 0, party: m.party || '', ref: m.ref || '', notes: m.notes || '',
-        status: 'ACTIVE', createdAt: new Date().toISOString(), cancelledAt: '', cancelReason: ''});
+      rows.push({id: m.id, date: m.date, type: m.type, sku, item: it.item, colour: it.colour, size: it.size, qty, signedQty: signed, rate: +m.rate || 0, party: m.party || '', ref: m.ref || '',
+        enteredBy: DEMO_USER.name, createdAt: new Date().toISOString().slice(0, 19).replace('T', ' '), status: 'ACTIVE', cancelledAt: '', cancelledBy: '', cancelReason: ''});
     });
     d.moves.push(...rows); demoSave(d); return {ok: true, saved: rows.length, duplicates: dupes};
   }
@@ -393,24 +449,21 @@ async function demoApi(action, p) {
     const m = d.moves.find(x => x.id === p.id); if (!m) throw new Error('Entry not found.');
     if (m.status === 'CANCELLED') return {ok: true, already: true};
     if (m.signedQty > 0 && (stock()[m.sku] || 0) - m.signedQty < 0) throw new Error(`Cannot cancel: ${m.sku} would go negative.`);
-    m.status = 'CANCELLED'; m.cancelledAt = new Date().toISOString(); m.cancelReason = p.reason || ''; demoSave(d); return {ok: true};
+    m.status = 'CANCELLED'; m.cancelledAt = new Date().toISOString(); m.cancelledBy = DEMO_USER.name; m.cancelReason = p.reason || ''; demoSave(d); return {ok: true};
   }
   throw new Error('Unknown action ' + action);
 }
 
 /* ════════════════════════ data refresh ════════════════════════ */
 async function refresh(quiet) {
-  if (isLive() && !getCfg().key) {            // built-in backend but this device has no key yet
-    state.loaded = false; state.error = ''; setSync('err');
-    if (parseHash().route !== 'settings') location.hash = '#/settings'; else render();
-    return;
-  }
+  if (!signedIn()) { state.loaded = false; render(); return; }
   setSync('busy');
   try {
     const d = await api('bootstrap');
-    state.items = d.items; state.moves = d.moves; state.calc = compute(d.items, d.moves);
+    if (isLive() && d.user && session) saveSession({token: session.token, user: d.user});    // role may have changed in the sheet
+    state.items = d.items; state.moves = d.moves; state.orphans = d.orphans || 0; state.calc = compute(d.items, d.moves);
     state.loaded = true; state.error = ''; setSync('ok');
-  } catch (e) { state.error = e.message; setSync('err'); if (!quiet) toast(e.message, true); }
+  } catch (e) { if (e.auth) return; state.error = e.message; setSync('err'); if (!quiet) toast(e.message, true); }
   render();
 }
 function setSync(s) {
@@ -422,42 +475,69 @@ async function write(action, payload, okMsg, onOk) {
   if (state.busy) return null;
   state.busy = true; setSync('busy');
   try { const r = await api(action, payload); if (onOk) onOk(r); toast(okMsg || 'Saved'); await refresh(true); return r; }
-  catch (e) { toast(e.message, true); setSync('err'); return null; }
+  catch (e) { if (!e.auth) { toast(e.message, true); setSync('err'); } return null; }
   finally { state.busy = false; }
 }
 
 /* ════════════════════════ router + chrome ════════════════════════ */
-const NAV = [['dashboard','Home','home'],['stock','Stock','box'],['entry','New entry','plus'],['moves','Movements','list'],['items','Items','tag'],['reports','Reports','chart'],['settings','Settings','gear']];
+const NAV = [['dashboard','Home','home'],['stock','Stock','box'],['entry','New entry','plus'],['moves','Movements','list'],['items','Items','tag'],['reports','Reports','chart'],['settings','Account','gear']];
+const navFor = () => NAV.filter(([k]) => k === 'entry' ? can.entry() : k === 'items' ? can.admin() : true);
 function parseHash() {
   const [p, qs = ''] = location.hash.replace(/^#\/?/, '').split('?');
-  return {route: NAV.some(n => n[0] === p) ? p : 'dashboard', q: Object.fromEntries(new URLSearchParams(qs))};
+  const ok = navFor().some(n => n[0] === p);
+  return {route: ok ? p : 'dashboard', q: ok ? Object.fromEntries(new URLSearchParams(qs)) : {}};
 }
 function chrome(r) {
-  $('#nav').innerHTML = NAV.map(([k, l, i]) => `<a href="#/${k}" class="${k === r ? 'on' : ''}" ${k === r ? 'aria-current="page"' : ''}>${ic(i)}${l}</a>`).join('');
+  document.body.classList.toggle('in', signedIn()); document.body.classList.toggle('out', !signedIn());
+  if (!signedIn()) { $('#nav').innerHTML = ''; $('#tabbar').innerHTML = ''; return; }
+  const u = me();
+  $('#userBtn').innerHTML = `<span class="av">${esc((u.name || '?').trim().charAt(0).toUpperCase())}</span><span class="nm">${esc(u.name)}</span>`;
+  $('#userBtn').title = `${u.name} · ${ROLES[u.role] || u.role}`;
+  $('#nav').innerHTML = navFor().map(([k, l, i]) => `<a href="#/${k}" class="${k === r ? 'on' : ''}" ${k === r ? 'aria-current="page"' : ''}>${ic(i)}${l}</a>`).join('');
   const tab = (k, l, i) => `<a href="#/${k}" class="${k === r ? 'on' : ''}">${ic(i)}<span>${l}</span></a>`;
   const moreOn = ['items', 'reports', 'settings'].includes(r);
-  $('#tabbar').innerHTML = tab('dashboard', 'Home', 'home') + tab('stock', 'Stock', 'box') +
-    `<a href="#/entry" class="fab ${r === 'entry' ? 'on' : ''}" aria-label="New entry"><span class="c">${ic('plus')}</span><em>New entry</em></a>` +
+  const mid = can.entry() ? `<a href="#/entry" class="fab ${r === 'entry' ? 'on' : ''}" aria-label="New entry"><span class="c">${ic('plus')}</span><em>New entry</em></a>` : tab('reports', 'Reports', 'chart');
+  $('#tabbar').innerHTML = tab('dashboard', 'Home', 'home') + tab('stock', 'Stock', 'box') + mid +
     tab('moves', 'Movements', 'list') + `<button id="moreBtn" class="${moreOn ? 'on' : ''}">${ic('more')}<span>More</span></button>`;
   $('#moreBtn').onclick = () => openDlg(`<div class="dh"><h2>More</h2><button class="xbtn" data-close aria-label="Close">${ic('x')}</button></div>
-    <div class="morelist"><a href="#/items" data-close>${ic('tag')}Items &amp; SKUs</a><a href="#/reports" data-close>${ic('chart')}Reports</a><a href="#/settings" data-close>${ic('gear')}Settings &amp; connection</a></div>`);
+    <div class="morelist">${can.admin() ? `<a href="#/items" data-close>${ic('tag')}Items &amp; SKUs</a>` : ''}${can.entry() ? `<a href="#/reports" data-close>${ic('chart')}Reports</a>` : ''}<a href="#/settings" data-close>${ic('gear')}Account &amp; sign out</a></div>`);
+}
+function loginView(v) {
+  v.innerHTML = `<div class="login"><form class="card" id="lf" autocomplete="on">
+    <div class="lg"><div class="logo">SN</div><div><b>SN ENTERPRISES</b><span>Sign in to the inventory tracker</span></div></div>
+    <div class="field"><label for="lUser">User name</label><input id="lUser" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></div>
+    <div class="field"><label for="lPass">Password</label><div class="pwrow"><input id="lPass" name="password" type="password" autocomplete="current-password" required><button type="button" id="lShow">Show</button></div></div>
+    <div class="err" id="lErr" role="alert">${esc(loginMsg)}</div>
+    <button class="btn block" id="lGo" type="submit" style="margin-top:14px">Sign in</button>
+    <p class="hint" style="margin:14px 0 0">Your user name and password are kept in the <b>Login</b> tab of the Google Sheet. Forgot yours? Ask the Super admin.</p></form></div>`;
+  loginMsg = '';
+  $('#lShow').onclick = () => { const i = $('#lPass'), h = i.type === 'password'; i.type = h ? 'text' : 'password'; $('#lShow').textContent = h ? 'Hide' : 'Show'; };
+  $('#lf').onsubmit = async e => {
+    e.preventDefault();
+    const btn = $('#lGo'), err = $('#lErr'); err.textContent = ''; btn.disabled = true; btn.textContent = 'Signing in…';
+    try { await doLogin($('#lUser').value.trim(), $('#lPass').value); location.hash = '#/dashboard'; await refresh(true); }
+    catch (x) { err.textContent = x.message; btn.disabled = false; btn.textContent = 'Sign in'; $('#lPass').select(); }
+  };
+  setTimeout(() => $('#lUser')?.focus(), 30);
 }
 function render() {
   const {route: r, q} = parseHash();
-  if (isLive() && !getCfg().key && r !== 'settings') { location.hash = '#/settings'; return; }   // not signed in on this device
   chrome(r);
   const v = $('#view');
+  if (!signedIn()) { setSync('err'); $('#syncTxt').textContent = 'Signed out'; if (!$('#lf')) loginView(v); return; }
   if (r === 'settings') { views.settings(v); return; }
   if (!state.loaded) { v.innerHTML = state.error
-      ? `<div class="banner bad"><b>Could not load data.</b> ${esc(state.error)} <a href="#/settings">Open settings</a></div>`
-      : '<div class="spin" aria-label="Loading"></div>'; return; }
-  const banner = !isLive() ? `<div class="banner">You are looking at <b>demo data</b> that lives only in this browser. <a href="#/settings">Connect your Google Sheet</a> to use real data.</div>` : '';
+      ? `<div class="banner bad"><b>Could not load data.</b> ${esc(state.error)} <button class="btn sm" id="retry" style="margin-left:8px">Try again</button></div>`
+      : '<div class="spin" aria-label="Loading"></div>'; const rb = $('#retry'); if (rb) rb.onclick = () => refresh(); return; }
+  const banner = (!isLive() ? `<div class="banner">You are looking at <b>demo data</b> that lives only in this browser.</div>` : '') +
+    (can.admin() && state.orphans ? `<div class="banner bad"><b>${num(state.orphans)} row${state.orphans > 1 ? 's' : ''} in the “Inward/ Outward” tab ${state.orphans > 1 ? 'do' : 'does'} not match any item</b> in the “Stock Movement” tab (check the spelling of Item, Colour and Size). ${state.orphans > 1 ? 'They are' : 'It is'} not counted in stock.</div>` : '');
   v.innerHTML = banner + '<div id="page"></div>';
   views[r]($('#page'), q); stackTables(v);
 }
 window.addEventListener('hashchange', () => { window.scrollTo(0, 0); render(); });
 $('#refreshBtn').innerHTML = ic('sync');
 $('#refreshBtn').onclick = () => refresh();
+$('#userBtn').onclick = () => { location.hash = '#/settings'; };
 
 /* ════════════════════════ shared widgets ════════════════════════ */
 const views = {};
@@ -496,33 +576,35 @@ function skuDialog(sku) {
   const hist = state.moves.filter(m => m.sku === sku).reverse().slice(0, 8);
   const d = openDlg(`<div class="dh"><div><h2>${esc(r.sku)}</h2><div class="muted">${esc(describe(r))}</div></div><button class="xbtn" data-close aria-label="Close">${ic('x')}</button></div>
     <div style="display:flex;align-items:flex-end;gap:12px"><div class="bigno">${num(r.onHand)}</div><div class="muted" style="padding-bottom:4px">in stock</div><div style="margin-left:auto">${pillFor(r.status)}</div></div>
-    <div class="facts"><div>Reorder level<b>${num(r.reorder)}</b></div><div>Stock value<b>${inr(r.value)}</b></div><div>Avg cost<b>${inr(r.avgCost)}</b></div><div>Sale rate<b>${inr(r.sale)}</b></div>
+    <div class="facts"><div>Opening stock<b>${num(r.opening)}</b></div><div>Reorder level<b>${num(r.reorder)}</b></div><div>Stock value<b>${inr(r.value)}</b></div><div>Avg cost<b>${inr(r.avgCost)}</b></div><div>Sale rate<b>${inr(r.sale)}</b></div>
       <div>HSN · GST<b>${esc(r.hsn || '—')} · ${r.gst}%</b></div><div>Category<b>${esc(r.category || '—')}</b></div></div>
-    <div class="seg" style="margin-bottom:12px"><a class="btn sm" style="text-decoration:none;display:inline-flex;align-items:center" href="#/entry?sku=${encodeURIComponent(r.sku)}&type=SALE" data-close>Sell</a>
-      <a class="btn sm" style="background:var(--ok);text-decoration:none;display:inline-flex;align-items:center" href="#/entry?sku=${encodeURIComponent(r.sku)}&type=PURCHASE" data-close>Receive stock</a>
-      <button class="btn ghost sm" id="skuEdit">Edit item</button></div>
+    <div class="seg" style="margin-bottom:12px">${can.entry() ? `<a class="btn sm" style="text-decoration:none;display:inline-flex;align-items:center" href="#/entry?sku=${encodeURIComponent(r.sku)}&type=SALE" data-close>Sell</a>
+      <a class="btn sm" style="background:var(--ok);text-decoration:none;display:inline-flex;align-items:center" href="#/entry?sku=${encodeURIComponent(r.sku)}&type=PURCHASE" data-close>Receive stock</a>` : ''}
+      ${can.admin() ? '<button class="btn ghost sm" id="skuEdit">Edit item</button>' : ''}</div>
     <h3>Recent movements</h3>${hist.length ? hist.map(m => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)${m.status === 'CANCELLED' ? ';text-decoration:line-through;color:var(--muted)' : ''}">
       <span>${esc(m.date)} · ${esc(TYPES[m.type]?.short || m.type)}${m.party ? ' · ' + esc(m.party) : ''}</span><b>${m.signedQty > 0 ? '+' : ''}${num(m.signedQty)}</b></div>`).join('') : '<div class="muted small">No movements yet.</div>'}`);
-  $('#skuEdit', d).onclick = () => editDialog(sku);
+  const eb = $('#skuEdit', d); if (eb) eb.onclick = () => editDialog(sku);
 }
 
 /* ════════════════════════ dashboard ════════════════════════ */
 views.dashboard = el => {
   if (!state.items.length) {
-    el.innerHTML = `<h1>Welcome 👋</h1><div class="card"><h2>Let’s set up your stock in 3 steps</h2><ol class="steps">
-      <li><div><b>Add your items</b><div class="muted">Enter an item once with its sizes and colours; all SKUs are created for you.<br><a href="#/items">Add items →</a></div></div></li>
-      <li><div><b>Enter opening stock</b><div class="muted">Record what you already have as “Opening stock”.<br><a href="#/entry?type=OPENING">Enter opening stock →</a></div></div></li>
-      <li><div><b>Record sales &amp; purchases</b><div class="muted">Every sale or purchase goes through “New entry”. Stock updates by itself.</div></div></li></ol></div>`;
+    el.innerHTML = can.admin()
+      ? `<h1>Welcome 👋</h1><div class="card"><h2>Let’s set up your stock in 3 steps</h2><ol class="steps">
+      <li><div><b>List your items</b><div class="muted">Fill the <b>Stock Movement</b> tab of your Google Sheet (Item, Colour, Size, Qty), or add items here with all their sizes and colours at once.<br><a href="#/items">Add items →</a></div></div></li>
+      <li><div><b>Opening stock</b><div class="muted">The <b>Qty</b> column in the Stock Movement tab is your opening stock. You can also set it per item under Items → Edit.</div></div></li>
+      <li><div><b>Record sales &amp; purchases</b><div class="muted">Every sale or purchase goes through “New entry”. Stock updates by itself.<br><a href="#/entry?type=PURCHASE">New entry →</a></div></div></li></ol></div>`
+      : `<h1>Welcome 👋</h1><div class="card empty">No items have been set up yet. Please ask the Super admin to add them.</div>`;
     return;
   }
   const rows = state.calc.rows.filter(r => r.active);
   const units = rows.reduce((a, r) => a + Math.max(r.onHand, 0), 0), val = rows.reduce((a, r) => a + r.value, 0);
   const alerts = rows.filter(r => ['LOW', 'OUT', 'NEG'].includes(r.status)).sort((a, b) => a.onHand - b.onHand);
-  const recent = [...state.moves].reverse().slice(0, 8);
+  const recent = state.moves.filter(m => m.status === 'ACTIVE').reverse().slice(0, 8);
   el.innerHTML = `<h1>Home</h1>
-  <div class="hero"><a class="act primary" href="#/entry?type=SALE">${ic('out')}<div>Record sale<small>Stock out</small></div></a>
+  ${can.entry() ? `<div class="hero"><a class="act primary" href="#/entry?type=SALE">${ic('out')}<div>Record sale<small>Stock out</small></div></a>
     <a class="act" href="#/entry?type=PURCHASE">${ic('in')}<div>Receive stock<small>Purchase / inward</small></div></a>
-    <a class="act" href="#/items" style="grid-column:span 1">${ic('tag')}<div>Add items<small>Sizes &amp; colours</small></div></a></div>
+    ${can.admin() ? `<a class="act" href="#/items" style="grid-column:span 1">${ic('tag')}<div>Add items<small>Sizes &amp; colours</small></div></a>` : ''}</div>` : ''}
   <div class="grid kpis">
     <div class="card kpi"><div class="l">Active SKUs</div><div class="v">${num(rows.length)}</div></div>
     <div class="card kpi"><div class="l">Units in stock</div><div class="v">${num(units)}</div></div>
@@ -534,7 +616,7 @@ views.dashboard = el => {
       ${alerts.slice(0, 8).map(r => `<tr class="click" data-sku="${esc(r.sku)}"><td class="p"><b>${esc(r.sku)}</b> <span class="muted small">${esc(describe(r))}</span></td><td class="n">${num(r.onHand)}</td><td class="n">${num(r.reorder)}</td><td>${pillFor(r.status)}</td></tr>`).join('')}
       </tbody></table></div>${alerts.length > 8 ? `<p class="small muted">+${alerts.length - 8} more in <a href="#/reports">Reports</a>.</p>` : ''}` : '<div class="empty">All good. Nothing is below its reorder level.</div>'}</div>
     <div class="card"><h2>Recent movements</h2>${recent.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>SKU</th><th>Date</th><th>Type</th><th class="n">Qty</th></tr></thead><tbody>
-      ${recent.map(m => `<tr class="${m.status === 'CANCELLED' ? 'cancelled' : ''}"><td class="p"><b>${esc(m.sku)}</b></td><td>${esc(m.date)}</td><td>${esc(TYPES[m.type]?.short || m.type)}</td><td class="n"><b>${m.signedQty > 0 ? '+' : ''}${num(m.signedQty)}</b></td></tr>`).join('')}
+      ${recent.map(m => `<tr class="${m.status === 'CANCELLED' ? 'cancelled' : ''}"><td class="p"><b>${esc(m.sku || m.item)}</b></td><td>${esc(m.date)}</td><td>${esc(TYPES[m.type]?.short || m.type)}</td><td class="n"><b>${m.signedQty > 0 ? '+' : ''}${num(m.signedQty)}</b></td></tr>`).join('')}
       </tbody></table></div><p class="small"><a href="#/moves">See all movements →</a></p>` : '<div class="empty">No movements yet.</div>'}</div>
   </div>`;
   $$('tr[data-sku]', el).forEach(tr => tr.onclick = () => skuDialog(tr.dataset.sku));
@@ -583,13 +665,14 @@ function addLine(sku, qty = 1) {
 }
 views.entry = (el, q) => {
   if (!E.date) E.date = today();
-  if (q.type && TYPES[q.type]) E.type = q.type;
+  if (!TYPES[E.type] || TYPES[E.type].hide) E.type = 'SALE';
+  if (q.type && TYPES[q.type] && !TYPES[q.type].hide) E.type = q.type;
   if (q.sku && bySku(q.sku)) { E.lines = E.lines.filter(l => l.sku !== q.sku.toUpperCase()); addLine(q.sku); history.replaceState(null, '', '#/entry'); }
   const t = () => TYPES[E.type];
   el.innerHTML = `<h1>New stock entry</h1>
   <div class="card" style="margin-bottom:14px">
     <label>What are you recording?</label>
-    <div class="seg types" id="types">${Object.entries(TYPES).map(([k, x]) => `<button type="button" data-type="${k}" data-dir="${x.dir}" class="${k === E.type ? 'on' : ''}">${x.short}</button>`).join('')}</div>
+    <div class="seg types" id="types">${Object.entries(TYPES).filter(([, x]) => !x.hide).map(([k, x]) => `<button type="button" data-type="${k}" data-dir="${x.dir}" class="${k === E.type ? 'on' : ''}">${x.short}</button>`).join('')}</div>
     <div class="dirnote" id="dirnote"></div>
     <div class="row" style="margin-top:14px;margin-bottom:0">
       <div class="field"><label>Date</label><input type="date" id="eDate" value="${esc(E.date)}"></div>
@@ -710,7 +793,7 @@ views.entry = (el, q) => {
 const MF = {q: '', t: '', f: '', to: '', c: false};
 views.moves = el => {
   el.innerHTML = `<h1>Movements</h1>
-  <div class="tools"><div class="grow"><input id="mq" type="search" placeholder="Search SKU, party, ref…" value="${esc(MF.q)}" aria-label="Search movements"></div>
+  <div class="tools"><div class="grow"><input id="mq" type="search" placeholder="Search item, party, ref, entered by…" value="${esc(MF.q)}" aria-label="Search movements"></div>
     <select id="mt" aria-label="Type"><option value="">All types</option>${Object.entries(TYPES).map(([k, x]) => `<option value="${k}" ${k === MF.t ? 'selected' : ''}>${x.label}</option>`).join('')}</select></div>
   <div class="tools"><div class="field" style="flex:1 1 140px"><label>From</label><input type="date" id="mf" value="${esc(MF.f)}"></div><div class="field" style="flex:1 1 140px"><label>To</label><input type="date" id="mto" value="${esc(MF.to)}"></div>
     <label class="inl" style="align-self:flex-end"><input type="checkbox" id="mc" ${MF.c ? 'checked' : ''}> show cancelled</label><span class="sp"></span><button class="btn ghost sm" id="mcsv" style="align-self:flex-end">Export CSV</button></div>
@@ -718,14 +801,14 @@ views.moves = el => {
   const draw = () => {
     const q = MF.q.trim().toLowerCase();
     const rows = state.moves.filter(m => (MF.c || m.status === 'ACTIVE') && (!MF.t || m.type === MF.t) && (!MF.f || m.date >= MF.f) && (!MF.to || m.date <= MF.to) &&
-      (!q || [m.sku, m.party, m.ref, m.notes, m.id].join(' ').toLowerCase().includes(q))).reverse();
+      (!q || [m.sku, m.item, m.colour, m.size, m.party, m.ref, m.enteredBy, m.id].join(' ').toLowerCase().includes(q))).reverse();
     draw.rows = rows; const shown = rows.slice(0, 300);
-    $('#mtbl').innerHTML = rows.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>Item</th><th>Type</th><th>Date</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Amount</th><th>Party</th><th>Ref</th><th></th></tr></thead><tbody>
+    $('#mtbl').innerHTML = rows.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>Item</th><th>Type</th><th>Date</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Amount</th><th>Party</th><th>Ref</th><th>By</th><th></th></tr></thead><tbody>
       ${shown.map(m => { const it = state.calc.bySku.get(m.sku); return `<tr class="${m.status === 'CANCELLED' ? 'cancelled' : ''}">
-        <td class="p"><b>${esc(m.sku)}</b><div class="small muted" style="white-space:normal">${esc(it ? describe(it) : '')}</div></td><td>${esc(TYPES[m.type]?.short || m.type)}</td><td>${esc(m.date)}</td>
+        <td class="p"><b>${esc(m.sku || m.item)}</b><div class="small muted" style="white-space:normal">${esc(describe(it || m))}</div></td><td>${esc(TYPES[m.type]?.short || m.type)}</td><td>${esc(m.date)}</td>
         <td class="n"><b>${m.signedQty > 0 ? '+' : ''}${num(m.signedQty)}</b></td><td class="n hm">${m.rate ? inr(m.rate) : ''}</td><td class="n">${m.rate ? inr(m.qty * m.rate) : '–'}</td>
-        <td>${esc(m.party)}</td><td>${esc(m.ref)}</td>
-        <td class="noL">${m.status === 'ACTIVE' ? `<button class="btn danger sm" data-cancel="${esc(m.id)}">Cancel entry</button>` : `<span class="pill off" title="${esc(m.cancelReason)}">CANCELLED${m.cancelReason ? ' · ' + esc(m.cancelReason) : ''}</span>`}</td></tr>`; }).join('')}
+        <td>${esc(m.party)}</td><td class="hm">${esc(m.ref)}</td><td class="hm">${esc(m.enteredBy)}</td>
+        <td class="noL">${m.status === 'ACTIVE' ? (can.admin() ? `<button class="btn danger sm" data-cancel="${esc(m.id)}">Cancel entry</button>` : '') : `<span class="pill off" title="${esc(m.cancelReason)}">CANCELLED${m.cancelReason ? ' · ' + esc(m.cancelReason) : ''}${m.cancelledBy ? ' · ' + esc(m.cancelledBy) : ''}</span>`}</td></tr>`; }).join('')}
       </tbody></table></div>${rows.length > shown.length ? `<p class="small muted">Showing latest ${shown.length} of ${rows.length}. Narrow the filters or export CSV for all.</p>` : ''}`
       : '<div class="card empty">No movements match.</div>';
     stackTables($('#mtbl')); $$('[data-cancel]').forEach(b => b.onclick = () => cancelDialog(b.dataset.cancel));
@@ -733,28 +816,29 @@ views.moves = el => {
   [['mq', 'q'], ['mt', 't'], ['mf', 'f'], ['mto', 'to']].forEach(([id, k]) => $('#' + id).addEventListener('input', e => { MF[k] = e.target.value; draw(); }));
   $('#mc').addEventListener('input', e => { MF.c = e.target.checked; draw(); }); draw();
   $('#mcsv').onclick = () => downloadCsv('movements-' + today() + '.csv',
-    [['ID','Date','Type','SKU','Qty','Signed qty','Rate','Party','Ref','Notes','Status','Cancel reason']]
-      .concat(draw.rows.map(m => [m.id, m.date, m.type, m.sku, m.qty, m.signedQty, m.rate, m.party, m.ref, m.notes, m.status, m.cancelReason])));
+    [['ID','Date','Type','Item','Colour','Size','SKU','Qty','Signed qty','Rate','Party','Ref','Entered by','Status','Cancelled by','Cancel reason']]
+      .concat(draw.rows.map(m => [m.id, m.date, m.type, m.item, m.colour, m.size, m.sku, m.qty, m.signedQty, m.rate, m.party, m.ref, m.enteredBy, m.status, m.cancelledBy, m.cancelReason])));
 };
 function cancelDialog(id) {
   const m = state.moves.find(x => x.id === id); if (!m) return;
   const d = openDlg(`<h2>Cancel this entry?</h2>
-    <p><b>${esc(m.sku)}</b> · ${esc(TYPES[m.type]?.short)} · ${num(m.signedQty)} pcs · ${esc(m.date)}${m.party ? ' · ' + esc(m.party) : ''}</p>
+    <p><b>${esc(m.sku || m.item)}</b> · ${esc(TYPES[m.type]?.short)} · ${num(m.signedQty)} pcs · ${esc(m.date)}${m.party ? ' · ' + esc(m.party) : ''}</p>
     <p class="muted small">The entry stays in the sheet marked CANCELLED and no longer counts towards stock.</p>
     <div class="field"><label>Reason (optional)</label><input id="cReason" placeholder="e.g. wrong size entered" autocomplete="off"></div>
     <div class="actions"><button class="btn ghost" data-close>Keep it</button><button class="btn danger" id="cGo">Cancel entry</button></div>`);
-  $('#cGo', d).onclick = async () => { const reason = $('#cReason', d).value.trim(); d.close(); await write('cancelMovement', {id, reason}, 'Entry cancelled'); };
+  $('#cGo', d).onclick = async () => { if (!can.admin()) return; const reason = $('#cReason', d).value.trim(); d.close(); await write('cancelMovement', {id, reason}, 'Entry cancelled'); };
 }
 
 /* ════════════════════════ items ════════════════════════ */
 views.items = el => {
+  if (!can.admin()) { el.innerHTML = '<div class="card empty">Only the Super admin can manage items.</div>'; return; }
   const open = !state.items.length ? 'open' : '';
   el.innerHTML = `<h1>Items</h1>
   <details class="card" ${open} style="margin-bottom:14px"><summary>Add a new item with sizes &amp; colours</summary>
+    <p class="hint" style="margin-top:0">New rows are added to the <b>Stock Movement</b> tab with opening stock 0. Short codes (SKUs) are created automatically.</p>
     <div class="row">
       <div class="field"><label>Item name</label><input id="aName" placeholder="e.g. Polo T-Shirt" autocomplete="off"></div>
       <div class="field"><label>Category</label><input id="aCat" list="catList" placeholder="e.g. Polo T-Shirts" autocomplete="off"></div>
-      <div class="field"><label>SKU prefix</label><input id="aPre" placeholder="e.g. POLO" style="text-transform:uppercase" autocomplete="off"></div>
       <div class="field"><label>HSN</label><input id="aHsn" list="hsnList" inputmode="numeric" placeholder="e.g. 6105" autocomplete="off"></div>
       <div class="field"><label>GST %</label><input id="aGst" type="number" inputmode="decimal" min="0" step="0.01" value="5"></div>
     </div>
@@ -766,43 +850,41 @@ views.items = el => {
     <div class="row">
       <div class="field"><label>Sizes (comma separated)</label><input id="aSizes" value="S, M, L, XL, XXL">
         <div class="chips">${['S, M, L, XL, XXL', 'M, L, XL', '28, 30, 32, 34, 36', 'Free size'].map(s => `<button type="button" class="chip" data-sz="${s}">${s}</button>`).join('')}</div></div>
-      <div class="field"><label>Colours (comma separated)</label><input id="aCols" placeholder="Navy, Black, Royal Blue" autocomplete="off"><div class="hint" style="margin-top:6px">Optional short code after “:”, e.g. Royal Blue:RBL</div></div>
+      <div class="field"><label>Colours (comma separated)</label><input id="aCols" placeholder="Navy, Black, Royal Blue" autocomplete="off"><div class="hint" style="margin-top:6px">Leave empty if the item has no colour variants.</div></div>
     </div>
     <datalist id="catList">${[...new Set(state.items.map(i => i.category).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join('')}</datalist>
     <datalist id="hsnList">${HSN_HINTS.map(([h, d]) => `<option value="${h}">${esc(d)}</option>`).join('')}</datalist>
     <div id="aPrev"></div><div class="err" id="aErr"></div>
-    <div style="margin-top:12px"><button class="btn" id="aSave">Create SKUs</button></div>
+    <div style="margin-top:12px"><button class="btn" id="aSave">Add to sheet</button></div>
     <p class="hint">HSN suggestions are only hints. Confirm HSN and GST rate before using them on invoices.</p>
   </details>
   <div class="tools"><div class="grow"><input id="iq" type="search" placeholder="Search items…" aria-label="Search items"></div><label class="inl"><input type="checkbox" id="iin"> inactive</label></div>
   <div id="itbl"></div>`;
 
   const parseList = s => s.split(',').map(x => x.trim()).filter(Boolean);
-  const clean = s => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const existing = new Set(state.items.map(i => i.sku));
+  const existing = new Set(state.items.map(i => keyOf(i.item, i.colour, i.size)));
   let generated = [];
   const gen = () => {
-    const pre = clean($('#aPre').value), name = $('#aName').value.trim();
-    const sizes = parseList($('#aSizes').value), cols = parseList($('#aCols').value).map(c => { const [n, code] = c.split(':').map(x => x.trim()); return {n, code: clean(code || n).slice(0, code ? 8 : 3)}; });
-    const S = sizes.length ? sizes : [''], C = cols.length ? cols : [{n: '', code: ''}];
-    generated = []; S.forEach(s => C.forEach(c => generated.push({sku: [pre, clean(s), c.code].filter(Boolean).join('-'), size: s, colour: c.n})));
-    const seen = new Set(); generated.forEach(g => { g.dup = existing.has(g.sku) ? 'exists' : seen.has(g.sku) ? 'clash' : ''; seen.add(g.sku); });
+    const name = $('#aName').value.trim();
+    const sizes = [...new Set(parseList($('#aSizes').value))], cols = [...new Set(parseList($('#aCols').value))];
+    const S = sizes.length ? sizes : [''], C = cols.length ? cols : [''];
+    generated = []; S.forEach(sz => C.forEach(c => generated.push({size: sz, colour: c})));
+    const seen = new Set(); generated.forEach(g => { const k = keyOf(name, g.colour, g.size); g.dup = existing.has(k) ? 'exists' : seen.has(k) ? 'clash' : ''; seen.add(k); });
     const bad = generated.filter(g => g.dup).length;
-    $('#aPrev').innerHTML = pre && name ? `<h3 style="margin-top:6px">${generated.length} SKU${generated.length > 1 ? 's' : ''} will be created</h3><div class="tablewrap" style="max-height:240px"><table class="stack"><thead><tr><th>SKU</th><th>Size</th><th>Colour</th><th></th></tr></thead><tbody>
-      ${generated.map(g => `<tr><td class="p"><b>${esc(g.sku)}</b></td><td>${esc(g.size)}</td><td>${esc(g.colour)}</td><td>${g.dup ? `<span class="pill out">${g.dup === 'exists' ? 'ALREADY EXISTS' : 'DUPLICATE CODE'}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '';
+    $('#aPrev').innerHTML = name ? `<h3 style="margin-top:6px">${generated.length} row${generated.length > 1 ? 's' : ''} will be added</h3><div class="tablewrap" style="max-height:240px"><table class="stack"><thead><tr><th>Item</th><th>Size</th><th>Colour</th><th></th></tr></thead><tbody>
+      ${generated.map(g => `<tr><td class="p"><b>${esc(name)}</b></td><td>${esc(g.size || '—')}</td><td>${esc(g.colour || '—')}</td><td>${g.dup ? `<span class="pill out">${g.dup === 'exists' ? 'ALREADY EXISTS' : 'DUPLICATE'}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '';
     stackTables($('#aPrev'));
-    $('#aErr').textContent = bad ? 'Some SKUs already exist or clash. Change the prefix or colour codes.' : '';
-    $('#aSave').disabled = !pre || !name || !!bad || !generated.length;
+    $('#aErr').textContent = bad ? 'Some of these already exist in the sheet. Remove them from the sizes/colours, or change the item name.' : '';
+    $('#aSave').disabled = !name || !!bad || !generated.length;
   };
-  ['aName', 'aPre', 'aSizes', 'aCols'].forEach(id => $('#' + id).addEventListener('input', gen));
-  $('#aName').addEventListener('input', () => { if (!$('#aPre').dataset.touched) { $('#aPre').value = clean($('#aName').value).slice(0, 4); gen(); } });
-  $('#aPre').addEventListener('input', () => $('#aPre').dataset.touched = '1');
+  ['aName', 'aSizes', 'aCols'].forEach(id => $('#' + id).addEventListener('input', gen));
   $$('.chip').forEach(c => c.onclick = () => { $('#aSizes').value = c.dataset.sz; gen(); });
   $('#aSave').onclick = async () => {
-    const items = generated.map(g => ({sku: g.sku, item: $('#aName').value.trim(), category: $('#aCat').value.trim(), size: g.size, colour: g.colour,
+    if (!can.admin()) return;
+    const items = generated.map(g => ({item: $('#aName').value.trim(), category: $('#aCat').value.trim(), size: g.size, colour: g.colour, opening: 0,
       hsn: $('#aHsn').value.trim(), gst: +$('#aGst').value || 0, cost: +$('#aCost').value || 0, sale: +$('#aSale').value || 0, reorder: +$('#aRe').value || 0, active: true}));
     $('#aSave').disabled = true;
-    const r = await write('saveItems', {items}, `Created ${items.length} SKU${items.length > 1 ? 's' : ''}`);
+    const r = await write('saveItems', {items}, `Added ${items.length} row${items.length > 1 ? 's' : ''}`);
     if (r) { E.item = items[0].item; location.hash = '#/items'; } else gen();
   };
   gen();
@@ -810,28 +892,29 @@ views.items = el => {
   const draw = () => {
     const q = $('#iq').value.trim().toLowerCase(), inact = $('#iin').checked;
     const rows = state.items.filter(i => (inact || i.active) && (!q || [i.sku, i.item, i.category, i.colour, i.hsn].join(' ').toLowerCase().includes(q)));
-    $('#itbl').innerHTML = rows.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>SKU</th><th>Category</th><th>HSN</th><th class="n">GST %</th><th class="n">Cost</th><th class="n">Sale</th><th class="n">Reorder</th><th></th></tr></thead><tbody>
+    $('#itbl').innerHTML = rows.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>SKU</th><th>Category</th><th>HSN</th><th class="n">GST %</th><th class="n">Opening</th><th class="n">Cost</th><th class="n">Sale</th><th class="n">Reorder</th><th></th></tr></thead><tbody>
       ${rows.map(i => `<tr><td class="p"><b>${esc(i.sku)}</b>${i.active ? '' : ' <span class="pill off">INACTIVE</span>'}<div class="small muted" style="white-space:normal">${esc(describe(i))}</div></td><td class="hm">${esc(i.category)}</td><td class="hm">${esc(i.hsn)}</td><td class="n hm">${i.gst}</td>
-        <td class="n">${inr(i.cost)}</td><td class="n">${inr(i.sale)}</td><td class="n hm">${num(i.reorder)}</td><td class="noL"><button class="btn ghost sm" data-edit="${esc(i.sku)}">Edit</button></td></tr>`).join('')}
+        <td class="n hm">${num(i.opening)}</td><td class="n">${inr(i.cost)}</td><td class="n">${inr(i.sale)}</td><td class="n hm">${num(i.reorder)}</td><td class="noL"><button class="btn ghost sm" data-edit="${esc(i.sku)}">Edit</button></td></tr>`).join('')}
       </tbody></table></div>` : '<div class="card empty">No items yet. Add your first item above.</div>';
     stackTables($('#itbl')); $$('[data-edit]').forEach(b => b.onclick = () => editDialog(b.dataset.edit));
   };
   $('#iq').addEventListener('input', draw); $('#iin').addEventListener('input', draw); draw();
 };
 function editDialog(sku) {
+  if (!can.admin()) return;
   const i = state.items.find(x => x.sku === sku); if (!i) return;
-  const d = openDlg(`<div class="dh"><h2>Edit ${esc(i.sku)}</h2><button class="xbtn" data-close aria-label="Close">${ic('x')}</button></div>
-    <div class="row"><div class="field"><label>Item name</label><input id="xName" value="${esc(i.item)}"></div><div class="field"><label>Category</label><input id="xCat" value="${esc(i.category)}"></div>
-      <div class="field"><label>Size</label><input id="xSize" value="${esc(i.size)}"></div><div class="field"><label>Colour</label><input id="xCol" value="${esc(i.colour)}"></div>
+  const d = openDlg(`<div class="dh"><div><h2>Edit ${esc(i.sku)}</h2><div class="muted small">${esc(describe(i))}</div></div><button class="xbtn" data-close aria-label="Close">${ic('x')}</button></div>
+    <p class="hint" style="margin-top:0">Item, colour and size can only be changed in the sheet, because past entries are linked to them by name.</p>
+    <div class="row"><div class="field"><label>Category</label><input id="xCat" value="${esc(i.category)}"></div>
+      <div class="field"><label>Opening stock</label><input id="xOpen" type="number" inputmode="numeric" min="0" step="1" value="${i.opening}"></div>
       <div class="field"><label>HSN</label><input id="xHsn" value="${esc(i.hsn)}"></div><div class="field"><label>GST %</label><input id="xGst" type="number" inputmode="decimal" min="0" step="0.01" value="${i.gst}"></div>
       <div class="field"><label>Cost rate ₹</label><input id="xCost" type="number" inputmode="decimal" min="0" step="0.01" value="${i.cost}"></div><div class="field"><label>Sale rate ₹</label><input id="xSale" type="number" inputmode="decimal" min="0" step="0.01" value="${i.sale}"></div>
       <div class="field"><label>Reorder level</label><input id="xRe" type="number" inputmode="numeric" min="0" step="1" value="${i.reorder}"></div>
       <div class="field"><label>Status</label><select id="xAct"><option value="1" ${i.active ? 'selected' : ''}>Active</option><option value="0" ${i.active ? '' : 'selected'}>Inactive (hidden from entry)</option></select></div></div>
     <div class="actions"><button class="btn ghost" data-close>Close</button><button class="btn" id="xGo">Save changes</button></div>`);
   $('#xGo', d).onclick = async () => {
-    const item = {sku: i.sku, item: $('#xName', d).value.trim(), category: $('#xCat', d).value.trim(), size: $('#xSize', d).value.trim(), colour: $('#xCol', d).value.trim(), hsn: $('#xHsn', d).value.trim(),
+    const item = {sku: i.sku, item: i.item, colour: i.colour, size: i.size, category: $('#xCat', d).value.trim(), hsn: $('#xHsn', d).value.trim(), opening: +$('#xOpen', d).value || 0,
       gst: +$('#xGst', d).value || 0, cost: +$('#xCost', d).value || 0, sale: +$('#xSale', d).value || 0, reorder: +$('#xRe', d).value || 0, active: $('#xAct', d).value === '1'};
-    if (!item.item) { toast('Item name is required', true); return; }
     d.close(); await write('saveItem', {item}, 'Item updated');
   };
 }
@@ -846,7 +929,7 @@ views.reports = el => {
   const reorder = rows.filter(r => r.hasMoves && r.reorder > 0 && r.onHand <= r.reorder).sort((a, b) => (a.onHand - a.reorder) - (b.onHand - b.reorder));
   const sum = a => ({skus: a.reduce((s, x) => s + x.skus, 0), qty: a.reduce((s, x) => s + x.qty, 0), val: a.reduce((s, x) => s + x.val, 0)});
   const th = sum(hsnRows);
-  el.innerHTML = `<h1>Reports</h1><div class="tools"><span class="muted small">Value = on-hand × weighted-average inward rate (master cost rate if none).</span><span class="sp"></span><button class="btn ghost sm" onclick="window.print()">Print</button></div>
+  el.innerHTML = `<h1>Reports</h1><div class="tools"><span class="muted small">Value = on-hand × weighted-average cost (opening stock at the item’s cost rate, plus purchases at their rates).</span><span class="sp"></span><button class="btn ghost sm" onclick="window.print()">Print</button></div>
   <div class="card" style="margin-bottom:14px"><div class="tools" style="margin-bottom:8px"><h2 style="margin:0">HSN-wise stock summary</h2><span class="sp"></span><button class="btn ghost sm" id="hcsv">CSV</button></div>
     ${hsnRows.length ? `<div class="tablewrap"><table class="stack"><thead><tr><th>HSN</th><th class="n">GST %</th><th class="n">SKUs</th><th class="n">Units</th><th class="n">Stock value</th><th class="n">Est. GST on value</th></tr></thead><tbody>
       ${hsnRows.map(g => `<tr><td class="p"><b>${esc(g.hsn)}</b></td><td class="n">${g.gst}</td><td class="n">${g.skus}</td><td class="n">${num(g.qty)}</td><td class="n">${inr(g.val)}</td><td class="n">${inr(g.val * g.gst / 100)}</td></tr>`).join('')}
@@ -860,34 +943,18 @@ views.reports = el => {
   $('#rcsv').onclick = () => downloadCsv('reorder-' + today() + '.csv', [['SKU','Item','On hand','Reorder level','Short by']].concat(reorder.map(r => [r.sku, describe(r), r.onHand, r.reorder, Math.max(r.reorder - r.onHand, 0)])));
 };
 
-/* ════════════════════════ settings ════════════════════════ */
+/* ════════════════════════ account ════════════════════════ */
 views.settings = el => {
-  const c = getCfg(), baked = !!BAKED_URL;
-  el.innerHTML = `<h1>Settings</h1><div class="card" style="max-width:720px;margin-bottom:14px">
-    <h2>${baked ? 'Sign in to your stock sheet' : 'Google Sheet connection'}</h2>
-    <p class="muted">${baked
-      ? (c.key ? '<span class="ok"><b>This device is signed in.</b></span> ' : 'Enter the access key once on this device. ') + 'Get the key from your Google Sheet: <b>SN Inventory → Show access key</b>. It is saved only on this device.'
-      : (isLive() ? '<span class="ok"><b>Connected.</b></span> ' : 'Not connected yet. ') + 'Paste the Web app URL from Apps Script and the access key from your Google Sheet (<b>SN Inventory → Show access key</b>). They are saved only on this device.'}</p>
-    ${baked ? '' : `<div class="field" style="margin-bottom:12px"><label>Web app URL</label><input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.url || '')}" autocomplete="off" autocapitalize="off"></div>`}
-    <div class="field" style="margin-bottom:12px"><label>Access key</label><input id="sKey" type="password" autocomplete="off" autocapitalize="off" value="${esc(c.key || '')}" placeholder="Paste the access key"></div>
-    <div class="err" id="sErr">${esc(state.error && isLive() ? state.error : '')}</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="sSave">${baked ? 'Sign in' : 'Save &amp; connect'}</button>
-      <button class="btn ghost" id="sDisc">${baked ? 'Sign out of this device' : 'Use demo data'}</button>
-      ${isLive() ? '' : '<button class="btn danger" id="sReset">Reset demo data</button>'}</div></div>
-  ${baked ? '' : `<details class="card" style="max-width:720px"><summary>How do I set this up?</summary><ol class="steps">
-    <li><div>Create a Google Sheet, open <b>Extensions → Apps Script</b> and paste the contents of <code>Code.gs</code>.</div></li>
-    <li><div>Run <b>setup</b> once and approve access. This creates the tabs and your access key.</div></li>
-    <li><div><b>Deploy → New deployment → Web app</b>. Execute as <b>Me</b>, access <b>Anyone</b>. Copy the URL.</div></li>
-    <li><div>Paste the URL and key above and tap <b>Save &amp; connect</b>.</div></li>
-    <li><div>On a phone, use your browser menu → <b>Add to Home screen</b> to open it like an app.</div></li></ol></details>`}`;
-  $('#sSave').onclick = async () => {
-    const url = baked ? BAKED_URL : $('#sUrl').value.trim(), key = $('#sKey').value.trim();
-    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) { $('#sErr').textContent = 'That does not look like an Apps Script Web app URL. It should start with https://script.google.com/'; return; }
-    if (!key) { $('#sErr').textContent = 'Enter the access key.'; return; }
-    setCfg({url: baked ? '' : url, key}); state.loaded = false; await refresh(true);
-    if (state.error) { $('#sErr').textContent = state.error; } else { toast(baked ? 'Signed in' : 'Connected to your Google Sheet'); location.hash = '#/dashboard'; }
-  };
-  $('#sDisc').onclick = () => { localStorage.removeItem(CFG_KEY); state.loaded = false; state.error = ''; refresh(true).then(() => { if (!baked) toast('Using demo data'); }); };
+  const u = me(), live = isLive();
+  const perms = {ADMIN: 'You can see everything, record stock, add and edit items, and cancel entries.', EDITOR: 'You can see stock and record inward / outward entries.', VIEWER: 'You can view stock and reports only.'}[u.role] || '';
+  el.innerHTML = `<h1>Account</h1><div class="card" style="max-width:640px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><span class="logo" style="width:46px;height:46px;font-size:19px;border-radius:50%">${esc((u.name || '?').charAt(0).toUpperCase())}</span>
+      <div><div style="font-size:18px;font-weight:800">${esc(u.name)}</div><span class="rolepill">${esc(ROLES[u.role] || u.role)}</span></div></div>
+    <p class="muted">${esc(perms)}</p>
+    <p class="small muted">${live ? 'Data is read from and saved to your Google Sheet. If the sheet is changed directly, tap the reload button at the top to see it here.' : 'You are using demo data that lives only in this browser.'}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="sOut">${live ? 'Sign out' : 'Exit demo'}</button>
+      ${live ? '' : '<button class="btn danger" id="sReset">Reset demo data</button>'}</div></div>`;
+  $('#sOut').onclick = () => { if (live) endSession(''); else location.href = location.pathname; };
   const rs = $('#sReset'); if (rs) rs.onclick = () => { if (confirm('Erase the demo data in this browser?')) { localStorage.removeItem(DEMO_KEY); refresh(true); } };
 };
 
