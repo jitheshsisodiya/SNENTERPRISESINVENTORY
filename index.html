@@ -592,7 +592,14 @@ const SWATCH = {yellow:'#facc15',grey:'#9ca3af',gray:'#9ca3af',navy:'#1e3a8a','n
   red:'#ef4444',green:'#22c55e','bottle green':'#14532d','parrot green':'#4ade80',blue:'#3b82f6','royal blue':'#2563eb',maroon:'#7f1d1d',pink:'#f9a8d4',purple:'#a855f7',brown:'#92400e',beige:'#e7d9bd',cream:'#fef3c7',
   mustard:'#ca8a04',rani:'#db2777',turquoise:'#2dd4bf',teal:'#0d9488',wine:'#881337',coffee:'#6f4e37',silver:'#cbd5e1',gold:'#d4a017',offwhite:'#f5f5f0','off white':'#f5f5f0'};
 const hexFor = c => { const k = normS(c); return SWATCH[k] || SWATCH[k.split(' ').pop()] || ''; };
-const photoFor = (item, colour) => ((window.SN_CONFIG && window.SN_CONFIG.photos) || {})[normS(item) + '|' + normS(colour)] || '';
+/* Photo keys ignore case, spaces and punctuation, so “DOT KNIT”, “Dot-Knit” and “dotknit” are the same item. */
+const pKey = v => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+let photoMap = null;
+const photoFor = (item, colour) => {
+  if (!photoMap) { photoMap = {}; const src = (window.SN_CONFIG && window.SN_CONFIG.photos) || {};
+    Object.keys(src).forEach(k => { const [i, c = ''] = k.split('|'); photoMap[pKey(i) + '|' + pKey(c)] = src[k]; }); }
+  return photoMap[pKey(item) + '|' + pKey(colour)] || '';
+};
 const swatch = (c, item) => {
   const h = hexFor(c), ph = photoFor(item, c);
   if (ph) return `<span class="cph" style="border-color:${h || 'var(--fieldline)'}"><img src="${esc(ph)}" alt="" loading="lazy" decoding="async"></span>`;
