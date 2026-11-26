@@ -96,7 +96,7 @@ body.out:not(.onlogin) .staffbtn{display:inline-flex}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-2px;margin-right:5px}
 .regwrap{overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
 table.reg{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
-table.reg th,table.reg td{padding:11px 10px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;min-width:62px}
+table.reg th,table.reg td{padding:11px 10px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;min-width:54px}
 table.reg thead th{background:var(--soft);color:var(--muted);font-size:11.5px;letter-spacing:.7px;text-transform:uppercase;position:sticky;top:0}
 table.reg .sn{min-width:40px;width:40px;color:var(--muted);font-size:12.5px}
 table.reg .cl{text-align:left;font-weight:700;min-width:120px;position:sticky;left:0;background:var(--card);z-index:1}
@@ -106,6 +106,7 @@ table.reg thead .sn{background:var(--soft);z-index:2}
 table.reg td.c{font-size:16px;font-weight:600}
 table.reg td.c.clk{cursor:pointer}table.reg td.c.clk:hover{background:var(--accent-l);box-shadow:inset 0 0 0 2px var(--accent)}
 table.reg td.zero{color:var(--bad);background:var(--badbg);font-weight:700}
+table.reg td.zp{color:var(--muted);font-weight:500}
 table.reg td.lowc{background:var(--warnbg);color:var(--warn);font-weight:800}
 table.reg td.neg{background:var(--bad);color:#fff}
 table.reg td.na{color:var(--line);font-weight:400}
@@ -116,7 +117,24 @@ table.reg tfoot td{font-weight:800;font-size:16px;background:var(--soft);border-
 table.reg tfoot td.cl,table.reg tfoot td.sn{background:var(--soft)}
 table.reg tfoot td.gt{background:var(--ink);color:#fff;font-size:17px;position:sticky;right:0;z-index:1}
 .sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25)}
-@media(max-width:560px){table.reg th,table.reg td{padding:10px 6px;min-width:50px}table.reg .sn{display:none}table.reg .cl{min-width:92px}table.reg td.c{font-size:15px}.reghead h2{font-size:21px}}
+@media(max-width:560px){
+  /* phones: squeeze the whole register into the screen width, no sideways scrolling for up to ~8 sizes */
+  table.reg th,table.reg td{padding:10px 1px;min-width:0}
+  table.reg .sn{display:none}
+  table.reg .cl{min-width:0;width:27%;white-space:normal;padding:8px 4px 8px 8px;font-size:13px;line-height:1.2;position:static}
+  table.reg .sw{width:9px;height:9px;margin-right:5px}
+  table.reg thead th{font-size:10.5px;letter-spacing:.1px}
+  table.reg td.c{font-size:13.5px}table.reg td.rt{font-size:13.5px}table.reg tfoot td{font-size:13px}table.reg tfoot td.gt{font-size:13.5px}
+  table.reg td.rt,table.reg th.rt,table.reg tfoot td.gt{position:static}
+  .pubitem{padding:8px 4px}.pubitem .ph{padding:0 6px}
+  body.out main{padding-left:8px;padding-right:8px}
+  table.reg td.c,table.reg td.rt{font-size:13px;font-weight:600}table.reg thead th{font-size:10px}
+  table.reg .sw{display:none}
+  .reghead h2{font-size:21px}
+}
+@media(max-width:400px){table.reg td.c,table.reg td.rt,table.reg tfoot td,table.reg tfoot td.gt{font-size:12px}table.reg .cl{font-size:11.5px;padding:8px 2px 8px 5px}table.reg thead th{font-size:9.5px;letter-spacing:0}table.reg td.rt,table.reg th.rt{border-left-width:1px}}
+@media(max-width:340px){body.out main{padding-left:5px;padding-right:5px}.pubitem{padding:8px 2px}table.reg td.c,table.reg td.rt,table.reg tfoot td,table.reg tfoot td.gt{font-size:10.5px;font-weight:600}table.reg .cl{font-size:10.5px;padding-left:4px}table.reg thead th{font-size:8.5px}}
+@media(min-width:561px){table.reg th,table.reg td{min-width:54px}table.reg .cl{min-width:100px}}
 @media print{.chiprow,.legend{display:none!important}.regwrap{border:0;overflow:visible}table.reg th,table.reg td{border:1px solid #000;color:#000!important;background:#fff!important}table.reg td.gt{background:#eee!important}.sw{display:none}}
 
 /* typography + layout */
@@ -580,7 +598,7 @@ function registerTable(rows, clickable) {
     const tds = sizes.map((sz, si) => {
       const r = cell[sz + '\u0000' + c]; if (!r) return '<td class="c na">·</td>';
       const q = r.qty; rt += q; colTot[si] += q;
-      const cls = q < 0 ? 'neg' : q === 0 ? 'zero' : (r.reorder > 0 && q <= r.reorder) ? 'lowc' : '';
+      const cls = q < 0 ? 'neg' : q === 0 ? (clickable ? 'zero' : 'zp') : (r.reorder > 0 && q <= r.reorder) ? 'lowc' : '';
       return `<td class="c ${cls} ${clickable && r.sku ? 'clk' : ''}" ${clickable && r.sku ? `data-sku="${esc(r.sku)}" title="${esc(describe(r))}"` : ''}>${num(q)}</td>`;
     }).join('');
     grand += rt;
