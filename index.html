@@ -116,24 +116,28 @@ table.reg tbody tr:hover td:not(.c){background:var(--soft)}
 table.reg tfoot td{font-weight:800;font-size:16px;background:var(--soft);border-top:2px solid var(--ink);border-bottom:0}
 table.reg tfoot td.cl,table.reg tfoot td.sn{background:var(--soft)}
 table.reg tfoot td.gt{background:var(--ink);color:#fff;font-size:17px;position:sticky;right:0;z-index:1}
-.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25);flex:none}
+.cph{display:inline-block;width:28px;height:28px;border-radius:50%;border:2.5px solid var(--fieldline);margin-right:8px;vertical-align:middle;overflow:hidden;background:var(--soft);flex:none;box-sizing:border-box}
+.cph img{width:100%;height:100%;object-fit:cover;object-position:50% 36%;display:block;transform:scale(1.7);transform-origin:50% 30%}
+td.hasph{cursor:pointer}td.hasph:hover{background:var(--accent-l)!important}
+.lbimg{display:block;width:100%;max-height:72vh;object-fit:contain;border-radius:12px;background:var(--soft)}
 @media(max-width:560px){
   /* phones: squeeze the whole register into the screen width, no sideways scrolling for up to ~8 sizes */
   table.reg th,table.reg td{padding:10px 1px;min-width:0}
   table.reg .sn{display:none}
   table.reg .cl{min-width:0;width:27%;white-space:normal;padding:8px 4px 8px 8px;font-size:13px;line-height:1.2;position:static}
-  table.reg .sw{width:9px;height:9px;margin-right:5px}
+  table.reg .sw{width:10px;height:10px;margin-right:4px}
+  table.reg .cph{width:22px;height:22px;margin-right:4px;border-width:2px}
   table.reg thead th{font-size:10.5px;letter-spacing:.1px}
   table.reg td.c{font-size:13.5px}table.reg td.rt{font-size:13.5px}table.reg tfoot td{font-size:13px}table.reg tfoot td.gt{font-size:13.5px}
   table.reg td.rt,table.reg th.rt,table.reg tfoot td.gt{position:static}
   .pubitem{padding:8px 4px}.pubitem .ph{padding:0 6px}
   body.out main{padding-left:8px;padding-right:8px}
   table.reg td.c,table.reg td.rt{font-size:13px;font-weight:600}table.reg thead th{font-size:10px}
-  table.reg .sw{display:none}
   .reghead h2{font-size:21px}
 }
-@media(max-width:400px){table.reg td.c,table.reg td.rt,table.reg tfoot td,table.reg tfoot td.gt{font-size:12px}table.reg .cl{font-size:11.5px;padding:8px 2px 8px 5px}table.reg thead th{font-size:9.5px;letter-spacing:0}table.reg td.rt,table.reg th.rt{border-left-width:1px}}
-@media(max-width:340px){body.out main{padding-left:5px;padding-right:5px}.pubitem{padding:8px 2px}table.reg td.c,table.reg td.rt,table.reg tfoot td,table.reg tfoot td.gt{font-size:10.5px;font-weight:600}table.reg .cl{font-size:10.5px;padding-left:4px}table.reg thead th{font-size:8.5px}}
+@media(max-width:400px){table.reg .cph{width:20px;height:20px;margin-right:3px}table.reg .sw{margin-right:3px}table.reg td.c,table.reg td.rt,table.reg tfoot td,table.reg tfoot td.gt{font-size:12px}table.reg .cl{font-size:11.5px;padding:8px 2px 8px 5px}table.reg thead th{font-size:9.5px;letter-spacing:0}table.reg td.rt,table.reg th.rt{border-left-width:1px}}
+@media(max-width:340px){table.reg .cph{width:17px;height:17px;border-width:1.5px}table.reg .sw{width:8px;height:8px}body.out main{padding-left:5px;padding-right:5px}.pubitem{padding:8px 2px}table.reg td.c,table.reg td.rt,table.reg tfoot td,table.reg tfoot td.gt{font-size:10.5px;font-weight:600}table.reg .cl{font-size:10.5px;padding-left:4px}table.reg thead th{font-size:8.5px}}
 @media(min-width:561px){table.reg th,table.reg td{min-width:54px}table.reg .cl{min-width:100px}}
 @media print{.chiprow,.legend{display:none!important}.regwrap{border:0;overflow:visible}table.reg th,table.reg td{border:1px solid #000;color:#000!important;background:#fff!important}table.reg td.gt{background:#eee!important}.sw{display:none}}
 
@@ -587,7 +591,17 @@ const views = {};
 const SWATCH = {yellow:'#facc15',grey:'#9ca3af',gray:'#9ca3af',navy:'#1e3a8a','navy blue':'#1e3a8a','sky blue':'#7dd3fc',sky:'#7dd3fc',orange:'#fb923c',peach:'#fdba9a',lavender:'#c4b5fd',black:'#111827',white:'#ffffff',
   red:'#ef4444',green:'#22c55e','bottle green':'#14532d','parrot green':'#4ade80',blue:'#3b82f6','royal blue':'#2563eb',maroon:'#7f1d1d',pink:'#f9a8d4',purple:'#a855f7',brown:'#92400e',beige:'#e7d9bd',cream:'#fef3c7',
   mustard:'#ca8a04',rani:'#db2777',turquoise:'#2dd4bf',teal:'#0d9488',wine:'#881337',coffee:'#6f4e37',silver:'#cbd5e1',gold:'#d4a017',offwhite:'#f5f5f0','off white':'#f5f5f0'};
-const swatch = c => { const k = normS(c), h = SWATCH[k] || SWATCH[k.split(' ').pop()]; return h ? `<i class="sw" style="background:${h}"></i>` : ''; };
+const hexFor = c => { const k = normS(c); return SWATCH[k] || SWATCH[k.split(' ').pop()] || ''; };
+const photoFor = (item, colour) => ((window.SN_CONFIG && window.SN_CONFIG.photos) || {})[normS(item) + '|' + normS(colour)] || '';
+const swatch = (c, item) => {
+  const h = hexFor(c), ph = photoFor(item, c);
+  if (ph) return `<span class="cph" style="border-color:${h || 'var(--fieldline)'}"><img src="${esc(ph)}" alt="" loading="lazy" decoding="async"></span>`;
+  return h ? `<i class="sw" style="background:${h}"></i>` : '';
+};
+function showPhoto(url, caption) {
+  openDlg(`<div class="dh"><h2>${esc(caption)}</h2><button class="xbtn" data-close aria-label="Close">${ic('x')}</button></div><img class="lbimg" src="${esc(url)}" alt="${esc(caption)}">`);
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-photo]'); if (t) showPhoto(t.dataset.photo, t.dataset.cap); });
 function registerTable(rows, clickable) {
   const sizes = [...new Set(rows.map(r => r.size))].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b));
   const cols = [...new Set(rows.map(r => r.colour))], cell = {};     // colours stay in the order they are listed in the sheet, like the paper register
@@ -602,7 +616,8 @@ function registerTable(rows, clickable) {
       return `<td class="c ${cls} ${clickable && r.sku ? 'clk' : ''}" ${clickable && r.sku ? `data-sku="${esc(r.sku)}" title="${esc(describe(r))}"` : ''}>${num(q)}</td>`;
     }).join('');
     grand += rt;
-    return `<tr><td class="sn">${ci + 1}</td><td class="cl">${swatch(c)}${esc(c || 'All')}</td>${tds}<td class="c rt">${num(rt)}</td></tr>`;
+    const first = rows.find(r => r.colour === c), ph = first ? photoFor(first.item, c) : '';
+    return `<tr><td class="sn">${ci + 1}</td><td class="cl ${ph ? 'hasph' : ''}" ${ph ? `data-photo="${esc(ph)}" data-cap="${esc(first.item + ' · ' + (c || 'All'))}" title="Tap to see the photo"` : ''}>${swatch(c, first && first.item)}${esc(c || 'All')}</td>${tds}<td class="c rt">${num(rt)}</td></tr>`;
   }).join('');
   return {total: grand, html: `<div class="regwrap"><table class="reg"><thead><tr><th class="sn">SN</th><th class="cl">${cols.some(c => c) ? 'Colour' : ''}</th>${sizes.map(sz => `<th>${esc(sz || '—')}</th>`).join('')}<th class="rt">Total</th></tr></thead>
     <tbody>${body}</tbody><tfoot><tr><td class="sn"></td><td class="cl">Total</td>${colTot.map(t => `<td>${num(t)}</td>`).join('')}<td class="gt">${num(grand)}</td></tr></tfoot></table></div>`,

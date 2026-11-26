@@ -53,6 +53,9 @@ Anyone who opens the website sees the **Live stock** page without signing in: ea
 - **Reports** – HSN-wise summary, category-wise value, reorder list; print or CSV.
 - **Account** – who you are, your access level, sign out.
 
+## Product photos
+Photos appear as a round picture next to the colour name on the Live stock page and in the Register; tap the colour to see the full photo. Photos live in the `photos` folder and are listed in `config.js` under `photos`, one line per item + colour, for example `'dotknit|yellow': 'photos/dotknit-yellow.jpg'` (lower case, as `item|colour`). To add one: shrink the picture to about 900 px wide, put it in `photos`, add the line, push to GitHub. Colours without a photo show a plain colour circle.
+
 ## Good to know
 - **Item, Colour and Size link the ledger to stock by name** (spelling and spacing, not case). If you rename an item in Stock Movement, old ledger rows stop matching. The app shows a red warning to the Super admin when ledger rows match no item. Prefer adding a new row over renaming.
 - Don't type into Stock Movement columns E–G; they are formulas.
