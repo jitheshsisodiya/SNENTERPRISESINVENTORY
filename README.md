@@ -27,6 +27,9 @@ Closing stock = opening Qty + inward − outward. Entries are never deleted; a c
 
 Rules are enforced in `Code.gs` on the server, not just by hiding buttons in the app. Every ledger row records who entered it (`Entry By`) and when.
 
+## Public live stock
+Anyone who opens the website sees the **Live stock** page without signing in: each item with a size × colour grid of quantities in stock, searchable, refreshed automatically every minute. It shows quantities only. Rates, HSN/GST, valuation, parties, user names and history are never sent to the public page. Staff use **Staff sign in** (top right) to enter stock or see the rest. If you do not want stock levels public, remove the `publicStock` line in `doPost` in `Code.gs` and redeploy.
+
 ## Set-up
 
 ### 1. Backend
@@ -35,7 +38,7 @@ Rules are enforced in `Code.gs` on the server, not just by hiding buttons in the
 3. Reload the sheet. In the new **SN Inventory** menu run **Hash all passwords now**. This replaces every plain-text password in the Login tab with a salted hash. (Passwords typed later are also converted automatically the first time that person signs in.) To reset someone's password, type a new plain password in the sheet; it is hashed on their next sign-in.
 4. **Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy.** This keeps the same Web app URL. (A brand-new deployment gives a new URL, which would then have to be changed in `index.html`, constant `BAKED_URL`.) Settings: Execute as **Me**, access **Anyone**.
 
-"Anyone" only makes the URL reachable. Nothing works without signing in with a valid user name and password; sign-ins last 14 days.
+"Anyone" only makes the URL reachable. Everything except the public Live stock page needs a valid user name and password; sign-ins last 14 days.
 
 ### 2. Website
 1. Push these files to the GitHub repository.

@@ -75,6 +75,12 @@ body.out main{padding-bottom:40px}
 .userbtn .av{width:24px;height:24px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none}
 .userbtn .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.in .userbtn{display:flex}
+.staffbtn{display:none;margin-left:auto;background:rgba(255,255,255,.14);color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:8px 14px;border-radius:99px;white-space:nowrap}
+.staffbtn:hover{background:rgba(255,255,255,.24)}
+body.out:not(.onlogin) .staffbtn{display:inline-flex}
+.pubitem{margin-bottom:12px}.pubitem .ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}.pubitem h2{margin:0}
+.pubitem td b{font-size:15px}.pubitem td.z{color:var(--muted)}
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 @media(max-width:559px){.userbtn .nm{display:none}.userbtn{padding:0 5px}}
 .rolepill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--infobg);color:var(--info)}
 
@@ -237,6 +243,7 @@ dialog .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;f
 <header class="top"><div class="bar">
   <a class="brand" href="#/dashboard" aria-label="Home"><div class="logo">SN</div><div><b>SN ENTERPRISES</b><span>Inventory tracker</span></div></a>
   <nav id="nav" aria-label="Main"></nav>
+  <a class="staffbtn" id="staffBtn" href="#/login">Staff sign in</a>
   <div class="sync"><span class="dot" id="dot"></span><span class="txt" id="syncTxt">…</span>
     <button id="refreshBtn" title="Reload latest data" aria-label="Reload latest data"></button>
     <button id="userBtn" class="userbtn" aria-label="Account"></button></div>
@@ -386,7 +393,7 @@ async function doLogin(user, password) {
 }
 function endSession(msg) {
   saveSession(null); state.items = []; state.moves = []; state.calc = null; state.loaded = false; state.error = ''; E.lines = [];
-  loginMsg = msg || ''; if (location.hash && location.hash !== '#/') location.hash = ''; render();
+  loginMsg = msg || ''; const h = msg ? '#/login' : ''; if (location.hash !== h && !(h === '' && !location.hash)) location.hash = h; render();
 }
 let loginMsg = '';
 
@@ -509,7 +516,8 @@ function loginView(v) {
     <div class="field"><label for="lPass">Password</label><div class="pwrow"><input id="lPass" name="password" type="password" autocomplete="current-password" required><button type="button" id="lShow">Show</button></div></div>
     <div class="err" id="lErr" role="alert">${esc(loginMsg)}</div>
     <button class="btn block" id="lGo" type="submit" style="margin-top:14px">Sign in</button>
-    <p class="hint" style="margin:14px 0 0">Your user name and password are kept in the <b>Login</b> tab of the Google Sheet. Forgot yours? Ask the Super admin.</p></form></div>`;
+    <p style="margin:14px 0 0"><a href="#/">← Back to live stock</a></p>
+    <p class="hint" style="margin:10px 0 0">Your user name and password are kept in the <b>Login</b> tab of the Google Sheet. Forgot yours? Ask the Super admin.</p></form></div>`;
   loginMsg = '';
   $('#lShow').onclick = () => { const i = $('#lPass'), h = i.type === 'password'; i.type = h ? 'text' : 'password'; $('#lShow').textContent = h ? 'Hide' : 'Show'; };
   $('#lf').onsubmit = async e => {
@@ -520,11 +528,65 @@ function loginView(v) {
   };
   setTimeout(() => $('#lUser')?.focus(), 30);
 }
+/* ── public live stock: no sign-in, quantities only ── */
+const PUB = {rows: null, at: 0, err: '', q: '', all: false, busy: false};
+async function loadPublic(quiet) {
+  if (PUB.busy) return; PUB.busy = true;
+  try {
+    let d;
+    if (isLive()) d = await post({action: 'publicStock'}); else d = {ok: true, rows: []};
+    if (!d.ok) throw new Error(d.error || 'Could not load stock.');
+    PUB.rows = d.rows; PUB.at = Date.now(); PUB.err = '';
+  } catch (e) { PUB.err = e.message; }
+  PUB.busy = false;
+  if (!signedIn() && !location.hash.startsWith('#/login')) render();
+}
+setInterval(() => { if (!signedIn() && !document.hidden && !location.hash.startsWith('#/login') && !PUB.busy && Date.now() - PUB.at > 55000) loadPublic(true); }, 15000);
+function publicView(v) {
+  if (!PUB.rows && !PUB.err && !PUB.busy) loadPublic();
+  if (PUB.at && Date.now() - PUB.at > 30000 && !PUB.busy) loadPublic(true);
+  if (!PUB.rows) { v.innerHTML = PUB.err ? `<div class="banner bad"><b>Could not load stock.</b> ${esc(PUB.err)} <button class="btn sm" id="pRetry" style="margin-left:8px">Try again</button></div>` : '<div class="spin" aria-label="Loading"></div>';
+    const b = $('#pRetry'); if (b) b.onclick = () => { PUB.err = ''; render(); }; return; }
+  if (!$('#pq')) {
+    v.innerHTML = `<h1>Live stock</h1>
+    <div class="tools"><div class="grow"><input id="pq" type="search" placeholder="Search item, colour or size…" aria-label="Search stock" value="${esc(PUB.q)}"></div>
+      <label class="inl"><input type="checkbox" id="pall" ${PUB.all ? 'checked' : ''}> show items with no stock</label>
+      <span class="sp"></span><button class="btn ghost sm" id="pRef">Refresh</button></div>
+    <div class="small muted" id="psum" style="margin:0 2px 10px"></div><div id="plist"></div>`;
+    $('#pq').addEventListener('input', e => { PUB.q = e.target.value; drawPublic(); });
+    $('#pall').addEventListener('input', e => { PUB.all = e.target.checked; drawPublic(); });
+    $('#pRef').onclick = () => { PUB.at = 0; loadPublic(true).then(() => toast('Stock refreshed')); };
+  }
+  drawPublic();
+}
+function drawPublic() {
+  const toks = PUB.q.toLowerCase().split(/\s+/).filter(Boolean), groups = new Map();
+  PUB.rows.forEach(r => { if (toks.every(t => [r.item, r.colour, r.size].join(' ').toLowerCase().includes(t))) (groups.get(r.item) || groups.set(r.item, []).get(r.item)).push(r); });
+  const names = [...groups.keys()].filter(n => PUB.all || groups.get(n).some(r => r.qty > 0)).sort((a, b) => a.localeCompare(b));
+  const units = names.reduce((a, n) => a + groups.get(n).reduce((x, r) => x + r.qty, 0), 0);
+  const t = PUB.at ? new Date(PUB.at).toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'}) : '';
+  $('#psum').innerHTML = `<span class="live-dot"><span class="dot live"></span>Live from the stock sheet${t ? ' · updated ' + t : ''}</span> · ${num(names.length)} item${names.length === 1 ? '' : 's'} · <b>${num(units)}</b> pieces`;
+  $('#plist').innerHTML = names.length ? names.map(n => {
+    const rows = groups.get(n), sizes = [...new Set(rows.map(r => r.size))].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b));
+    const cols = [...new Set(rows.map(r => r.colour))].sort((a, b) => a.localeCompare(b)), cell = {}; rows.forEach(r => cell[r.size + '\u0000' + r.colour] = r.qty);
+    const tot = rows.reduce((a, r) => a + r.qty, 0);
+    return `<div class="card pubitem"><div class="ph"><h2>${esc(n)}</h2><span class="muted small"><b>${num(tot)}</b> pcs</span></div>
+      <div class="grid-entry"><table><thead><tr><th>${cols.some(c => c) ? 'Colour' : ''}</th>${sizes.map(s => `<th>${esc(s || '—')}</th>`).join('')}</tr></thead><tbody>
+      ${cols.map(c => `<tr><td>${esc(c || 'All')}</td>${sizes.map(s => { const q = cell[s + '\u0000' + c]; return q === undefined ? '<td class="z">·</td>' : q > 0 ? `<td><b>${num(q)}</b></td>` : '<td class="z">–</td>'; }).join('')}</tr>`).join('')}
+      </tbody></table></div></div>`; }).join('') : '<div class="card empty">Nothing matches.</div>';
+}
+
 function render() {
   const {route: r, q} = parseHash();
   chrome(r);
   const v = $('#view');
-  if (!signedIn()) { setSync('err'); $('#syncTxt').textContent = 'Signed out'; if (!$('#lf')) loginView(v); return; }
+  if (!signedIn()) {
+    const onLogin = location.hash.startsWith('#/login');
+    document.body.classList.toggle('onlogin', onLogin);
+    if (onLogin) { if (!$('#lf')) loginView(v); } else publicView(v);
+    return;
+  }
+  document.body.classList.remove('onlogin');
   if (r === 'settings') { views.settings(v); return; }
   if (!state.loaded) { v.innerHTML = state.error
       ? `<div class="banner bad"><b>Could not load data.</b> ${esc(state.error)} <button class="btn sm" id="retry" style="margin-left:8px">Try again</button></div>`

@@ -270,6 +270,7 @@ function doPost(e) {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const action = body.action, p = body.payload || {};
     if (action === 'login') return json_(Object.assign({ok: true}, login_(p.user, p.password)));
+    if (action === 'publicStock') return json_(publicStock_());    // no sign-in: quantities only
 
     const user = authenticate_(body.token);
     const allowed = PERMS[action];
@@ -293,6 +294,7 @@ function doPost(e) {
     else if (action === 'addMovements') res = addMovements_(p.movements || [], user);
     else if (action === 'cancelMovement') res = cancelMovement_(p.id, p.reason, user);
     SpreadsheetApp.flush();
+    try { CacheService.getScriptCache().remove('pubstock'); } catch (x) { /* ignore */ }
     return json_(Object.assign({ok: true}, res));
   } catch (err) {
     return json_({ok: false, error: String(err && err.message ? err.message : err), auth: !!(err && err.auth)});
@@ -442,6 +444,21 @@ function readMoves_(byKey) {
       cancelledAt: str_(r[14]), cancelledBy: str_(r[15]), cancelReason: str_(r[16])
     });
   });
+  return out;
+}
+
+// Public, read-only stock list for anyone who opens the website. Quantities only:
+// no rates, HSN, GST, valuation, parties or user names ever leave through this action.
+function publicStock_() {
+  const cache = CacheService.getScriptCache();
+  try { const hit = cache.get('pubstock'); if (hit) return JSON.parse(hit); } catch (e) { /* recompute */ }
+  const items = readItemRows_();
+  const moves = readMoves_(keyMap_(items));
+  const st = stockMap_(items, moves);
+  const out = {ok: true, serverTime: new Date().toISOString(), rows: items.filter(function (i) { return i.active; }).map(function (i) {
+    return {item: i.item, colour: i.colour, size: i.size, qty: Math.max(st[i.sku] || 0, 0)};
+  })};
+  try { cache.put('pubstock', JSON.stringify(out), 20); } catch (e) { /* too large to cache: fine */ }
   return out;
 }
 
