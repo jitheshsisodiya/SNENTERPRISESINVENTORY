@@ -1,0 +1,9 @@
+name = "sn-stock-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://jitheshsisodiya.github.io"
+# Secrets are set separately and never stored in this file:
+#   npx wrangler secret put APPS_SCRIPT_URL
+#   npx wrangler secret put PROXY_KEY

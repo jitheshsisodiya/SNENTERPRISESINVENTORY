@@ -269,6 +269,10 @@ function doPost(e) {
   try {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const action = body.action, p = body.payload || {};
+    // Optional second lock. When a Script Property named PROXY_KEY exists, only requests that carry it
+    // (added by the Cloudflare proxy in /proxy) are served, so the raw Apps Script URL is useless on its own.
+    const proxyKey = PropertiesService.getScriptProperties().getProperty('PROXY_KEY');
+    if (proxyKey && body.proxyKey !== proxyKey) throw new Error('Not allowed.');
     if (action === 'login') return json_(Object.assign({ok: true}, login_(p.user, p.password)));
     if (action === 'publicStock') return json_(publicStock_());    // no sign-in: quantities only
 

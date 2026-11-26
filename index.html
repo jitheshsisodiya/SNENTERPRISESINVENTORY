@@ -288,6 +288,7 @@ dialog .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;f
 <dialog id="dlg"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script>
 'use strict';
 /* ════════════════════════ helpers ════════════════════════ */
@@ -387,7 +388,7 @@ const rateFor = (it, type) => !it ? 0 : r2(TYPES[type].rate === 'sale' ? it.sale
 const SESSION_KEY = 'snit_session_v2', DEMO_KEY = 'snit_demo_v2';
 /* The Google Apps Script Web app is built in so staff never see or paste it.
    The URL alone gives no access: every request needs a sign-in token issued after user name + password. */
-const BAKED_URL = 'https://script.google.com/macros/s/AKfycbw2DCUcZ41rgRTxeEJd83RI54CKT32RFxJYyy6GCH5Pw8pZmn1-XBJAXOYyRHOebyPh0A/exec';
+const BAKED_URL = (window.SN_CONFIG && window.SN_CONFIG.api) || '';      // set in config.js
 const FORCE_DEMO = new URLSearchParams(location.search).has('demo');   // open index.html?demo to practise on sample data
 const isLive = () => !FORCE_DEMO && !!BAKED_URL;
 const DEMO_USER = {name: 'Demo', role: 'ADMIN'};
@@ -629,6 +630,7 @@ async function loadPublic(quiet) {
   try {
     let d;
     if (isLive()) d = await post({action: 'publicStock'}); else d = {ok: true, rows: []};
+    if (!d.ok && (d.auth || /sign in/i.test(d.error || ''))) throw new Error('Live stock is not switched on yet. The Super admin must publish the latest Code.gs in Apps Script (Deploy → Manage deployments → Edit → New version → Deploy).');
     if (!d.ok) throw new Error(d.error || 'Could not load stock.');
     PUB.rows = d.rows; PUB.at = Date.now(); PUB.err = '';
   } catch (e) { PUB.err = e.message; }

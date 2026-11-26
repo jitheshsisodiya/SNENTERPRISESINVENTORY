@@ -61,4 +61,4 @@ Anyone who opens the website sees the **Live stock** page without signing in: ea
 - `ALLOW_NEGATIVE_STOCK` in `Code.gs` can be set to `true` to allow selling below zero.
 - **SN Inventory → Sign out everyone** invalidates all sign-ins at once (use it if a phone is lost).
 - Open `index.html?demo` to practise on sample data without touching the real sheet.
-- The Web app URL is visible in the page source, as for any static site. It cannot be used without a valid sign-in.
+- The Web app address lives in `config.js`. It is visible to anyone who looks, as with any website, and cannot be used without a valid sign-in. To keep it out of the site entirely, see **SECURITY.md** (optional free proxy).
